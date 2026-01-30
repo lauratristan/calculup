@@ -1,6 +1,6 @@
 // =============================================================================
-// CALCUL UP - MOTEUR DE JEU (VERSION COMPLÈTE FONCTIONNELLE)
-// Gestion complète des sessions d'entraînement et du gameplay
+// CALCUL UP - MOTEUR DE JEU (VERSION MISE À JOUR)
+// Nouvelles fonctionnalités : choix type questions, touche Entrée, signalement
 // =============================================================================
 
 const CalculUpGame = (function() {
@@ -15,6 +15,7 @@ const CalculUpGame = (function() {
         startTime: null,
         sessionConfig: {
             questionCount: 5,
+            questionType: 'all',           // 🆕 NOUVEAU : 'qcm', 'open', 'all'
             selectedChapters: [],
             selectedNotions: [],
             includeAllLevels: false
@@ -22,7 +23,8 @@ const CalculUpGame = (function() {
         currentQuestionStartTime: null,
         score: 0,
         correctAnswers: 0,
-        timeBonus: 0
+        timeBonus: 0,
+        hintUsed: false                    // 🆕 NOUVEAU : suivi utilisation indice
     };
 
     let questionTimer = null;
@@ -63,6 +65,7 @@ const CalculUpGame = (function() {
             startTime: null,
             sessionConfig: {
                 questionCount: 5,
+                questionType: 'all',
                 selectedChapters: [],
                 selectedNotions: [],
                 includeAllLevels: false
@@ -70,7 +73,8 @@ const CalculUpGame = (function() {
             currentQuestionStartTime: null,
             score: 0,
             correctAnswers: 0,
-            timeBonus: 0
+            timeBonus: 0,
+            hintUsed: false
         };
     }
 
@@ -133,7 +137,7 @@ const CalculUpGame = (function() {
     }
 
     // ==========================================================================
-    // CONFIGURATION ET SÉLECTION DES QUESTIONS
+    // CONFIGURATION ET SÉLECTION DES QUESTIONS (🆕 AVEC TYPE)
     // ==========================================================================
 
     function showConfigScreen() {
@@ -175,6 +179,34 @@ const CalculUpGame = (function() {
                             </div>
                         </div>
 
+                        <!-- 🆕 NOUVEAU : Type de questions -->
+                        <div class="mb-6">
+                            <label class="block text-stone-700 font-medium mb-3">Type de questions</label>
+                            <div class="grid grid-cols-3 gap-3">
+                                <button onclick="CalculUpGame.selectQuestionType('all')" 
+                                        data-type="all"
+                                        class="question-type-btn p-4 border-2 border-emerald-400 bg-emerald-100 text-emerald-700 rounded-xl font-medium transition-all hover:border-emerald-500">
+                                    <div class="text-lg mb-1">🎯</div>
+                                    <div>Toutes</div>
+                                    <div class="text-xs opacity-70">QCM + Ouvertes</div>
+                                </button>
+                                <button onclick="CalculUpGame.selectQuestionType('qcm')" 
+                                        data-type="qcm"
+                                        class="question-type-btn p-4 border-2 border-stone-200 text-stone-600 rounded-xl font-medium transition-all hover:border-emerald-300 hover:bg-emerald-50">
+                                    <div class="text-lg mb-1">📝</div>
+                                    <div>QCM</div>
+                                    <div class="text-xs opacity-70">Choix multiples</div>
+                                </button>
+                                <button onclick="CalculUpGame.selectQuestionType('open')" 
+                                        data-type="open"
+                                        class="question-type-btn p-4 border-2 border-stone-200 text-stone-600 rounded-xl font-medium transition-all hover:border-emerald-300 hover:bg-emerald-50">
+                                    <div class="text-lg mb-1">✏️</div>
+                                    <div>Ouvertes</div>
+                                    <div class="text-xs opacity-70">Saisie libre</div>
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Mode adaptatif -->
                         <div class="mb-6">
                             <label class="flex items-center space-x-3 cursor-pointer">
@@ -201,6 +233,7 @@ const CalculUpGame = (function() {
                                 <p class="text-stone-600">
                                     <span class="font-medium">5 questions</span> • 
                                     <span class="font-medium">Toutes les notions vues</span> • 
+                                    <span class="font-medium">Tous types</span> •
                                     <span class="font-medium">~3 min</span>
                                 </p>
                             </div>
@@ -214,7 +247,6 @@ const CalculUpGame = (function() {
             </div>
         `;
         
-        // CORRECTION : Utiliser l'approche standard
         const root = document.getElementById('root');
         root.innerHTML = html;
         updateConfigPreview();
@@ -265,13 +297,35 @@ const CalculUpGame = (function() {
         updateConfigPreview();
     }
 
+    // 🆕 NOUVELLE FONCTION : Sélection type questions
+    function selectQuestionType(type) {
+        gameState.sessionConfig.questionType = type;
+        
+        document.querySelectorAll('.question-type-btn').forEach(btn => {
+            btn.classList.remove('border-emerald-400', 'bg-emerald-100', 'text-emerald-700');
+            btn.classList.add('border-stone-200', 'text-stone-600');
+        });
+        
+        document.querySelector(`[data-type="${type}"]`).classList.add('border-emerald-400', 'bg-emerald-100', 'text-emerald-700');
+        document.querySelector(`[data-type="${type}"]`).classList.remove('border-stone-200', 'text-stone-600');
+        
+        updateConfigPreview();
+    }
+
     function updateConfigPreview() {
         const adaptiveMode = document.getElementById('adaptive-mode')?.checked;
         const selectedChapters = Array.from(document.querySelectorAll('.chapter-checkbox:checked')).map(cb => cb.dataset.chapter);
         const questionCount = gameState.sessionConfig.questionCount;
+        const questionType = gameState.sessionConfig.questionType;
         const estimatedTime = Math.ceil(questionCount * 0.6);
         
         gameState.sessionConfig.selectedChapters = selectedChapters;
+        
+        const typeLabels = {
+            'all': 'Tous types',
+            'qcm': 'QCM seulement',
+            'open': 'Ouvertes seulement'
+        };
         
         const preview = document.getElementById('config-preview');
         if (preview) {
@@ -280,6 +334,7 @@ const CalculUpGame = (function() {
                 <p class="text-stone-600">
                     <span class="font-medium">${questionCount} questions</span> • 
                     <span class="font-medium">${modeText}</span> • 
+                    <span class="font-medium">${typeLabels[questionType]}</span> •
                     <span class="font-medium">~${estimatedTime} min</span>
                 </p>
             `;
@@ -287,7 +342,7 @@ const CalculUpGame = (function() {
     }
 
     // ==========================================================================
-    // GÉNÉRATION ET SÉLECTION DES QUESTIONS
+    // GÉNÉRATION ET SÉLECTION DES QUESTIONS (🆕 AVEC FILTRE TYPE)
     // ==========================================================================
 
     function getQuestionsForSession() {
@@ -297,7 +352,10 @@ const CalculUpGame = (function() {
         const config = gameState.sessionConfig;
         
         // Questions système de base
-        let availableQuestions = CalculUpData.getDefaultQuestions({ level: userLevel });
+        let availableQuestions = CalculUpData.getDefaultQuestions({ 
+            level: userLevel,
+            type: config.questionType === 'all' ? undefined : config.questionType  // 🆕 FILTRE TYPE
+        });
         
         // Filtrer selon les notions vues
         const adaptiveMode = document.getElementById('adaptive-mode')?.checked ?? true;
@@ -339,6 +397,7 @@ const CalculUpGame = (function() {
             gameState.correctAnswers = 0;
             gameState.timeBonus = 0;
             gameState.isPlaying = true;
+            gameState.hintUsed = false;  // Reset pour chaque session
             
             console.log('🎮 Démarrage session:', gameState);
             
@@ -352,7 +411,7 @@ const CalculUpGame = (function() {
     }
 
     // ==========================================================================
-    // INTERFACE DE JEU
+    // INTERFACE DE JEU (🆕 AVEC RACCOURCIS CLAVIER)
     // ==========================================================================
 
     function showGameScreen() {
@@ -373,6 +432,8 @@ const CalculUpGame = (function() {
         const totalQuestions = gameState.questions.length;
         const progress = (questionNumber / totalQuestions) * 100;
         const timeLimit = currentQuestion.timeLimit || 30;
+        
+        gameState.hintUsed = false;  // Reset pour chaque question
         
         const html = `
             <div class="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 p-4">
@@ -409,11 +470,19 @@ const CalculUpGame = (function() {
                             <div class="text-2xl text-stone-800 leading-relaxed">
                                 ${formatMathExpression(currentQuestion.question)}
                             </div>
+                            <!-- 🆕 INDICE CORRIGÉ -->
                             ${currentQuestion.hint ? `
-                                <button onclick="CalculUpGame.showHint()" 
-                                        class="mt-4 px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors text-sm">
-                                    💡 Voir l'indice (-5 pts)
-                                </button>
+                                <div id="hint-section">
+                                    <button id="hint-button" onclick="CalculUpGame.showHint()" 
+                                            class="mt-4 px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors text-sm">
+                                        💡 Voir l'indice (-5 pts)
+                                    </button>
+                                    <div id="hint-content" style="display: none;" class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                        <p class="text-amber-700 text-sm">
+                                            <strong>💡 Indice :</strong> ${formatMathExpression(currentQuestion.hint)}
+                                        </p>
+                                    </div>
+                                </div>
                             ` : ''}
                         </div>
 
@@ -422,85 +491,136 @@ const CalculUpGame = (function() {
                             ${renderAnswerInterface(currentQuestion)}
                         </div>
                     </div>
-
-                    <!-- Actions -->
-                    <div class="flex justify-between items-center">
-                        <button onclick="CalculUpGame.skipQuestion()" 
-                                class="px-6 py-3 bg-stone-200 hover:bg-stone-300 text-stone-700 rounded-xl transition-colors">
-                            Passer cette question
-                        </button>
-                        
-                        <div class="flex space-x-3">
-                            <button onclick="CalculUpGame.submitAnswer()" 
-                                    class="px-8 py-3 bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-600 hover:to-sky-600 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl">
-                                Valider
-                            </button>
-                            ${currentQuestion.type === 'open' ? `
-                                <button onclick="CalculUpGame.showMathKeyboard()" 
-                                        class="px-6 py-3 bg-sky-100 hover:bg-sky-200 text-sky-700 rounded-xl transition-colors">
-                                    𝑓(𝑥)
-                                </button>
-                            ` : ''}
-                        </div>
-                    </div>
-
-                    <!-- Signalement -->
-                    <div class="mt-6 text-center">
-                        <button onclick="CalculUpGame.reportQuestion()" 
-                                class="text-sm text-stone-500 hover:text-stone-700 transition-colors">
-                            🚩 Signaler un problème avec cette question
-                        </button>
-                    </div>
                 </div>
             </div>
         `;
         
-        // CORRECTION : Utiliser l'approche standard
         const root = document.getElementById('root');
         root.innerHTML = html;
         
-        // Configurer les raccourcis clavier pour les questions ouvertes
-        if (currentQuestion && currentQuestion.type === 'open') {
-            setTimeout(() => {
-                setupMathKeyboardShortcuts();
-            }, 100);
-        }
+        // 🆕 CONFIGURATION RACCOURCIS CLAVIER
+        setupKeyboardShortcuts();
         
         // Démarrer le timer
         gameState.currentQuestionStartTime = Date.now();
         startQuestionTimer(timeLimit);
     }
 
-    function renderAnswerInterface(question) {
-        if (question.type === 'qcm') {
-            return `
-                <div class="space-y-3">
-                    ${question.choices.map((choice, index) => `
-                        <button onclick="CalculUpGame.selectChoice(${index})" 
-                                data-choice="${index}"
-                                class="choice-button w-full p-4 text-left border-2 border-stone-200 rounded-xl hover:border-emerald-300 hover:bg-emerald-50 transition-all">
-                            <span class="font-semibold text-emerald-600 mr-3">${String.fromCharCode(65 + index)}.</span>
-                            <span class="text-stone-700">${formatMathExpression(choice)}</span>
-                        </button>
-                    `).join('')}
-                </div>
-            `;
-        } else {
-            return `
-                <div class="space-y-4">
-                    <div class="relative">
-                        <input type="text" 
-                               id="open-answer" 
-                               placeholder="Saisissez votre réponse..."
-                               class="w-full p-4 text-lg border-2 border-stone-200 rounded-xl focus:border-emerald-400 focus:outline-none transition-colors">
-                        <div class="text-sm text-stone-500 mt-2">
-                            Utilisez le clavier mathématique pour les symboles spéciaux
-                        </div>
-                    </div>
-                </div>
-            `;
+    // 🆕 NOUVELLE FONCTION : Configuration raccourcis clavier
+    function setupKeyboardShortcuts() {
+        // Supprimer les anciens listeners
+        document.removeEventListener('keydown', handleKeyboardShortcuts);
+        
+        // Ajouter le nouveau listener
+        document.addEventListener('keydown', handleKeyboardShortcuts);
+        
+        // Configurer focus automatique pour les questions ouvertes
+        const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+        if (currentQuestion && currentQuestion.type === 'open') {
+            setTimeout(() => {
+                const answerInput = document.getElementById('open-answer');
+                if (answerInput) {
+                    answerInput.focus();
+                }
+            }, 100);
         }
     }
+
+    // 🆕 NOUVELLE FONCTION : Gestion des raccourcis
+    function handleKeyboardShortcuts(event) {
+        // Entrée : Valider la réponse
+        if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.altKey) {
+            event.preventDefault();
+            submitAnswer();
+            return;
+        }
+        
+        // Échap : Quitter
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            if (confirm('Voulez-vous vraiment quitter la session ?')) {
+                quitGame();
+            }
+            return;
+        }
+        
+        // Chiffres 1-4 : Sélection QCM
+        const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+        if (currentQuestion && currentQuestion.type === 'qcm') {
+            const num = parseInt(event.key);
+            if (num >= 1 && num <= 4) {
+                event.preventDefault();
+                selectChoice(num - 1);
+                return;
+            }
+        }
+        
+    }
+
+    function renderAnswerInterface(question) {
+    if (question.type === 'qcm') {
+        return `
+            <div class="space-y-3 mb-6">
+                ${question.choices.map((choice, index) => `
+                    <button onclick="CalculUpGame.selectChoice(${index})" 
+                            data-choice="${index}"
+                            class="choice-button w-full p-4 text-left border-2 border-stone-200 rounded-xl hover:border-emerald-300 hover:bg-emerald-50 transition-all">
+                        <span class="font-semibold text-emerald-600 mr-3">${String.fromCharCode(65 + index)}.</span>
+                        <span class="text-stone-700">${formatMathExpression(choice)}</span>
+                    </button>
+                `).join('')}
+            </div>
+            
+            <!-- 🆕 NOUVEAUX BOUTONS VALIDER/PASSER -->
+            <div class="flex gap-3 justify-center">
+                <button onclick="CalculUpGame.submitAnswer()" 
+                        id="submit-btn"
+                        class="flex-1 bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-600 hover:to-sky-600 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl">
+                    ✅ Valider
+                </button>
+                <button onclick="CalculUpGame.skipQuestion()" 
+                        class="bg-stone-300 hover:bg-stone-400 text-stone-700 font-semibold py-3 px-6 rounded-xl transition-all">
+                    ⏭️ Passer
+                </button>
+            </div>
+            
+            <div class="text-sm text-stone-500 mt-4 text-center">
+                💡 Raccourcis : Chiffres 1-4 pour sélectionner, Entrée pour valider
+            </div>
+        `;
+    } else {
+        return `
+            <div class="space-y-4 mb-6">
+                <div class="relative">
+                    <input type="text" 
+                           id="open-answer" 
+                           placeholder="Saisissez votre réponse..."
+                           class="w-full p-4 text-lg border-2 border-stone-200 rounded-xl focus:border-emerald-400 focus:outline-none transition-colors">
+                    <div class="text-sm text-stone-500 mt-2">
+                        Utilisez le clavier mathématique pour les symboles spéciaux
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 🆕 NOUVEAUX BOUTONS VALIDER/PASSER -->
+            <div class="flex gap-3 justify-center">
+                <button onclick="CalculUpGame.submitAnswer()" 
+                        id="submit-btn"
+                        class="flex-1 bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-600 hover:to-sky-600 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl">
+                    ✅ Valider
+                </button>
+                <button onclick="CalculUpGame.skipQuestion()" 
+                        class="bg-stone-300 hover:bg-stone-400 text-stone-700 font-semibold py-3 px-6 rounded-xl transition-all">
+                    ⏭️ Passer
+                </button>
+            </div>
+            
+            <div class="text-sm text-stone-500 mt-4 text-center">
+                💡 Entrée pour valider • Ctrl+M pour le clavier mathématique
+            </div>
+        `;
+    }
+}
 
     function selectChoice(index) {
         document.querySelectorAll('.choice-button').forEach(btn => {
@@ -548,6 +668,9 @@ const CalculUpGame = (function() {
             return;
         }
         
+        // Supprimer les listeners clavier
+        document.removeEventListener('keydown', handleKeyboardShortcuts);
+        
         cleanupGameTimers();
         
         const answerData = {
@@ -566,19 +689,27 @@ const CalculUpGame = (function() {
     }
 
     // ==========================================================================
-    // SOUMISSION ET VALIDATION DES RÉPONSES
+    // SOUMISSION ET VALIDATION DES RÉPONSES (🆕 AVEC MAJ IMMÉDIATE)
     // ==========================================================================
 
     function submitAnswer() {
-        if (!gameState.isPlaying || gameState.currentQuestionIndex >= gameState.questions.length) {
-            console.log('⚠️ Tentative de soumission sur session terminée');
-            return;
-        }
-        
-        const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
-        if (!currentQuestion) {
-            return;
-        }
+    if (!gameState.isPlaying || gameState.currentQuestionIndex >= gameState.questions.length) {
+        console.log('⚠️ Tentative de soumission sur session terminée');
+        return;
+    }
+    
+    // 🆕 DÉSACTIVER LES BOUTONS PENDANT LE TRAITEMENT
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '⏳ Validation...';
+        submitBtn.className = 'flex-1 bg-stone-400 text-white font-semibold py-3 px-6 rounded-xl cursor-not-allowed';
+    }
+    
+    const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+    if (!currentQuestion) {
+        return;
+    }
         
         const timeSpent = (Date.now() - gameState.currentQuestionStartTime) / 1000;
         
@@ -607,6 +738,9 @@ const CalculUpGame = (function() {
             isCorrect = checkOpenAnswer(userAnswer, currentQuestion);
         }
         
+        // Supprimer les listeners clavier
+        document.removeEventListener('keydown', handleKeyboardShortcuts);
+        
         cleanupGameTimers();
         
         let points = isCorrect ? (currentQuestion.points || 10) : 0;
@@ -617,15 +751,17 @@ const CalculUpGame = (function() {
             gameState.timeBonus += speedBonus;
         }
         
-        const answerData = {
-            questionId: currentQuestion.id || `q_${gameState.currentQuestionIndex}`,
-            userAnswer: userAnswer,
-            isCorrect: isCorrect,
-            timeSpent: Math.round(timeSpent),
-            points: points,
-            speedBonus: speedBonus,
-            timestamp: Date.now()
-        };
+    const answerData = {
+    questionId: currentQuestion.id || `q_${gameState.currentQuestionIndex}`,
+    userAnswer: userAnswer,
+    isCorrect: isCorrect,
+    timeSpent: Math.round(timeSpent),
+    points: points,
+    speedBonus: speedBonus,
+    hintUsed: gameState.hintUsed || false,  // 🆕 AJOUTER
+    hintPenalty: gameState.hintUsed ? 5 : 0, // 🆕 AJOUTER
+    timestamp: Date.now()
+};
         
         gameState.answers.push(answerData);
         gameState.score += points + speedBonus;
@@ -638,6 +774,9 @@ const CalculUpGame = (function() {
         showAnswerFeedback(answerData, currentQuestion);
     }
 
+    // ==========================================================================
+    // FONCTION SHOWFEEDBACK MISE À JOUR AVEC SIGNALEMENT
+    // ==========================================================================
     function showAnswerFeedback(answerData, question) {
         // Nettoyer le timer précédent s'il existe
         if (feedbackTimer) {
@@ -683,7 +822,7 @@ const CalculUpGame = (function() {
             icon = '❌';
         }
         
-        const feedbackId = 'feedback-' + Date.now(); // ID unique pour éviter les conflits
+        const feedbackId = 'feedback-' + Date.now();
         
         const html = `
             <div id="${feedbackId}" class="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
@@ -704,6 +843,17 @@ const CalculUpGame = (function() {
                             </div>
                         ` : ''}
                         
+                        <!-- 🆕 BOUTON SIGNALEMENT DANS LA POP-IN -->
+                        <div class="flex justify-between items-center mb-4">
+                            <button onclick="CalculUpGame.showReportDialog('${question.id}', '${answerData.userAnswer || ''}')" 
+                                    class="text-rose-600 hover:text-rose-700 text-sm transition-colors">
+                                🚩 Signaler
+                            </button>
+                            <div class="text-xs text-stone-500">
+                                Question #${gameState.currentQuestionIndex + 1}
+                            </div>
+                        </div>
+                        
                         <button onclick="CalculUpGame.proceedToNextQuestion('${feedbackId}')" 
                                 class="w-full py-3 bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-600 hover:to-sky-600 text-white font-semibold rounded-xl transition-all">
                             ${gameState.currentQuestionIndex + 1 >= gameState.questions.length ? 'Voir les résultats' : 'Question suivante'}
@@ -715,13 +865,10 @@ const CalculUpGame = (function() {
         
         document.body.insertAdjacentHTML('beforeend', html);
         
-        // Timer automatique mais annulable
-        feedbackTimer = setTimeout(() => {
-            const feedback = document.getElementById(feedbackId);
-            if (feedback) {
-                proceedToNextQuestion(feedbackId);
-            }
-        }, 3000);
+        // ❌ TIMER AUTOMATIQUE SUPPRIMÉ - L'utilisateur contrôle maintenant
+        // Plus de passage automatique à la question suivante
+        
+        console.log('✅ Pop-in affichée sans timer automatique - contrôle utilisateur');
     }
 
     function proceedToNextQuestion(feedbackId) {
@@ -772,6 +919,9 @@ const CalculUpGame = (function() {
             return;
         }
         
+        // Supprimer les listeners clavier
+        document.removeEventListener('keydown', handleKeyboardShortcuts);
+        
         const answerData = {
             questionId: currentQuestion.id || `q_${gameState.currentQuestionIndex}`,
             userAnswer: null,
@@ -786,6 +936,215 @@ const CalculUpGame = (function() {
         gameState.answers.push(answerData);
         cleanupGameTimers();
         showAnswerFeedback(answerData, currentQuestion);
+    }
+
+    // ==========================================================================
+    // FONCTIONNALITÉS AMÉLIORÉES (🆕 INDICE ET SIGNALEMENT)
+    // ==========================================================================
+
+    // 🆕 FONCTION CORRIGÉE : Affichage indice
+    function showHint() {
+        const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+        if (!currentQuestion || !currentQuestion.hint || gameState.hintUsed) {
+            return;
+        }
+        
+        // Marquer l'indice comme utilisé
+        gameState.hintUsed = true;
+        
+        // Déduire les points
+        gameState.score = Math.max(0, gameState.score - 5);
+        const scoreDisplay = document.getElementById('current-score');
+        if (scoreDisplay) {
+            scoreDisplay.textContent = gameState.score;
+        }
+        
+        // Afficher l'indice
+        const hintButton = document.getElementById('hint-button');
+        const hintContent = document.getElementById('hint-content');
+        
+        if (hintButton && hintContent) {
+            hintButton.style.display = 'none';
+            hintContent.style.display = 'block';
+        }
+        
+        console.log('💡 Indice affiché, -5 points');
+    }
+
+    // ==========================================================================
+    // FONCTIONNALITÉS DE SIGNALEMENT (🆕 VERSION CORRIGÉE)
+    // ==========================================================================
+
+    function showReportDialog(questionId, userAnswer = null) {
+        if (!questionId) {
+            const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+            if (!currentQuestion) return;
+            questionId = currentQuestion.id;
+        }
+        
+        console.log('🚩 Ouverture dialog signalement pour question:', questionId);
+        
+        // Types de signalements simplifiés
+        const reportTypes = {
+            'wrong_answer': {
+                label: 'Réponse incorrecte',
+                description: 'La réponse donnée comme correcte est fausse'
+            },
+            'wrong_correction': {
+                label: 'Ma réponse était correcte',
+                description: 'Ma réponse était juste mais a été rejetée'
+            },
+            'question_error': {
+                label: 'Erreur dans l\'énoncé',
+                description: 'L\'énoncé contient une erreur ou est mal formulé'
+            },
+            'inappropriate_content': {
+                label: 'Contenu inapproprié',
+                description: 'Contenu offensant ou non approprié'
+            },
+            'technical_issue': {
+                label: 'Problème technique',
+                description: 'Bug ou problème d\'affichage'
+            }
+        };
+        
+        const dialogHtml = `
+            <div id="report-dialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                <div class="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+                    <div class="text-center mb-6">
+                        <h3 class="text-xl font-bold text-stone-800 mb-2">🚩 Signaler un problème</h3>
+                        <p class="text-stone-600 text-sm">Aidez-nous à améliorer la qualité des questions</p>
+                    </div>
+                    
+                    <div class="space-y-3 mb-6">
+                        ${Object.entries(reportTypes).map(([type, info]) => `
+                            <label class="flex items-start space-x-3 p-3 border border-stone-200 rounded-lg cursor-pointer hover:bg-stone-50 transition-colors">
+                                <input type="radio" name="report-type" value="${type}" 
+                                       class="mt-1 w-4 h-4 text-rose-600 border-stone-300 focus:ring-rose-500">
+                                <div class="flex-1">
+                                    <div class="font-medium text-stone-800">${info.label}</div>
+                                    <div class="text-xs text-stone-500">${info.description}</div>
+                                </div>
+                            </label>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-stone-700 mb-2">
+                            Détails (optionnel)
+                        </label>
+                        <textarea id="report-details" 
+                                  placeholder="Décrivez le problème en détail..."
+                                  class="w-full p-3 border border-stone-300 rounded-lg focus:border-rose-400 focus:outline-none resize-none" 
+                                  rows="3"></textarea>
+                    </div>
+                    
+                    ${userAnswer ? `
+                        <div class="mb-4 p-3 bg-stone-50 rounded-lg">
+                            <p class="text-sm text-stone-600">
+                                <strong>Votre réponse :</strong> ${userAnswer}
+                            </p>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="flex space-x-3">
+                        <button onclick="CalculUpGame.closeReportDialog()" 
+                                class="flex-1 py-2 bg-stone-200 hover:bg-stone-300 text-stone-700 rounded-lg transition-colors">
+                            Annuler
+                        </button>
+                        <button onclick="CalculUpGame.submitReport('${questionId}', '${userAnswer || ''}')" 
+                                class="flex-1 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-lg transition-colors">
+                            🚩 Envoyer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', dialogHtml);
+    }
+
+    function closeReportDialog() {
+        const dialog = document.getElementById('report-dialog');
+        if (dialog) {
+            dialog.remove();
+        }
+    }
+
+    async function submitReport(questionId, userAnswer = null) {
+        const selectedType = document.querySelector('input[name="report-type"]:checked');
+        const details = document.getElementById('report-details').value.trim();
+        
+        if (!selectedType) {
+            CalculUpCore.showError('Veuillez sélectionner un type de problème');
+            return;
+        }
+        
+        try {
+            CalculUpCore.showLoading('Envoi du signalement...');
+            
+            const user = CalculUpCore.getUser();
+            if (!user) {
+                throw new Error('Utilisateur non connecté');
+            }
+            
+            console.log('👤 Données utilisateur pour signalement:', user);
+            
+            // Récupérer la question actuelle
+            const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+            if (!currentQuestion) {
+                throw new Error('Question non trouvée');
+            }
+            
+            const db = CalculUpCore.getDb();
+            if (!db) {
+                throw new Error('Base de données non disponible');
+            }
+            
+            // 🔧 CORRECTION : Gérer les données utilisateur manquantes
+            const reportData = {
+                itemId: questionId,
+                itemType: 'question',
+                reportType: selectedType.value,
+                description: details || '',
+                userAnswer: userAnswer || null,
+                reportedBy: user.uid || user.id,
+                reporterName: user.firstname || user.displayName || 'Utilisateur',
+                reporterIdentifier: user.identifier || user.email || 'inconnu',
+                status: 'pending',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                priority: (selectedType.value === 'wrong_answer' || selectedType.value === 'wrong_correction') ? 'high' : 'normal',
+                
+                // Informations de contexte
+                questionText: currentQuestion.question,
+                questionCreator: currentQuestion.creator || 'system',
+                correctAnswer: currentQuestion.type === 'qcm' ? 
+                    currentQuestion.choices[currentQuestion.correctChoice] : 
+                    currentQuestion.answer,
+                sessionId: gameState.startTime,
+                gameContext: {
+                    currentQuestionIndex: gameState.currentQuestionIndex,
+                    totalQuestions: gameState.questions.length,
+                    userScore: gameState.score
+                }
+            };
+            
+            console.log('📨 Envoi signalement (données corrigées):', reportData);
+            
+            await db.collection('reports').add(reportData);
+            
+            CalculUpCore.hideLoading();
+            CalculUpCore.showSuccess('✅ Signalement envoyé ! Merci de nous aider à améliorer la qualité.');
+            
+            closeReportDialog();
+            
+            console.log('✅ Signalement envoyé avec succès');
+            
+        } catch (error) {
+            console.error('❌ Erreur envoi signalement:', error);
+            CalculUpCore.hideLoading();
+            CalculUpCore.showError('Impossible d\'envoyer le signalement : ' + error.message);
+        }
     }
 
     // ==========================================================================
@@ -813,7 +1172,6 @@ const CalculUpGame = (function() {
             return;
         }
         
-        // ✅ CORRECTION : Symboles mathématiques directement intégrés (plus de "undefined")
         const mathSymbols = [
             { char: 'π', name: 'Pi' },
             { char: '∞', name: 'Infini' },
@@ -932,70 +1290,14 @@ const CalculUpGame = (function() {
         }
     }
 
-    function setupMathKeyboardShortcuts() {
-        const answerInput = document.getElementById('open-answer');
-        if (!answerInput) return;
-        
-        answerInput.removeEventListener('keydown', handleMathKeyboardShortcuts);
-        answerInput.addEventListener('keydown', handleMathKeyboardShortcuts);
-    }
-
-    function handleMathKeyboardShortcuts(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
-            e.preventDefault();
-            showMathKeyboard();
-            return;
-        }
-        
-        if (e.ctrlKey || e.metaKey) {
-            switch(e.key) {
-                case 'p':
-                    e.preventDefault();
-                    insertMathSymbol('π');
-                    break;
-                case '2':
-                    e.preventDefault();
-                    insertMathSymbol('²');
-                    break;
-                case '3':
-                    e.preventDefault();
-                    insertMathSymbol('³');
-                    break;
-                case 'i':
-                    e.preventDefault();
-                    insertMathSymbol('∞');
-                    break;
-                case 'r':
-                    e.preventDefault();
-                    insertMathSymbol('√');
-                    break;
-            }
-        }
-    }
-
     // ==========================================================================
     // UTILITAIRES DE JEU
     // ==========================================================================
 
-    function showHint() {
-        const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
-        if (!currentQuestion.hint) return;
-        
-        CalculUpCore.showInfo(`💡 Indice : ${currentQuestion.hint}`);
-        
-        gameState.score = Math.max(0, gameState.score - 5);
-        const scoreDisplay = document.getElementById('current-score');
-        if (scoreDisplay) {
-            scoreDisplay.textContent = gameState.score;
-        }
-    }
-
-    function reportQuestion() {
-        CalculUpCore.showInfo('Système de signalement en développement');
-    }
-
     function quitGame() {
         if (confirm('Êtes-vous sûr de vouloir quitter ? Votre progression sera perdue.')) {
+            // Supprimer les listeners clavier
+            document.removeEventListener('keydown', handleKeyboardShortcuts);
             cleanupGameTimers();
             gameState.isPlaying = false;
             resetGameState();
@@ -1004,116 +1306,137 @@ const CalculUpGame = (function() {
     }
 
     // ==========================================================================
-    // ÉCRAN DE RÉSULTATS
+    // ÉCRAN DE RÉSULTATS (🆕 AVEC MAJ IMMÉDIATE)
     // ==========================================================================
 
     function showResultsScreen() {
-        cleanupGameTimers();
-        gameState.isPlaying = false;
-        
-        const user = CalculUpCore.getUser();
-        const totalTime = Math.round((Date.now() - gameState.startTime) / 1000);
-        const accuracy = gameState.questions.length > 0 ? 
-            Math.round((gameState.correctAnswers / gameState.questions.length) * 100) : 0;
-        
-        console.log('🏆 Affichage résultats de session');
-        
-        const baseXP = gameState.correctAnswers * 15;
-        const bonusXP = 25;
-        const totalXP = baseXP + bonusXP;
-        
-        const html = `
-            <div class="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 p-4">
-                <div class="max-w-4xl mx-auto">
-                    <div class="text-center mb-8">
-                        <div class="text-6xl mb-4">${accuracy >= 80 ? '🎉' : accuracy >= 60 ? '👍' : '💪'}</div>
-                        <h1 class="text-3xl font-bold text-stone-800 mb-2">Session terminée !</h1>
-                        <p class="text-stone-600">Chaque session compte. Révise les notions et recommence !</p>
+    // Supprimer les listeners clavier
+    document.removeEventListener('keydown', handleKeyboardShortcuts);
+    cleanupGameTimers();
+    gameState.isPlaying = false;
+    
+    const user = CalculUpCore.getUser();
+    const totalTime = Math.round((Date.now() - gameState.startTime) / 1000);
+    const accuracy = gameState.questions.length > 0 ? 
+        Math.round((gameState.correctAnswers / gameState.questions.length) * 100) : 0;
+    
+    console.log('🏆 Affichage résultats de session');
+    
+    const baseXP = gameState.correctAnswers * 15;
+    const bonusXP = 25;
+    const totalXP = baseXP + bonusXP;
+    
+    // 🆕 Calculer les indices utilisés AVANT le template
+    const hintsUsed = gameState.answers.filter(a => a.hintUsed).length;
+    const hintPenalty = hintsUsed * 5;
+    
+    const html = `
+        <div class="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 p-4">
+            <div class="max-w-4xl mx-auto">
+                <div class="text-center mb-8">
+                    <div class="text-6xl mb-4">${accuracy >= 80 ? '🎉' : accuracy >= 60 ? '👍' : '💪'}</div>
+                    <h1 class="text-3xl font-bold text-stone-800 mb-2">Session terminée !</h1>
+                    <p class="text-stone-600">Chaque session compte. Révise les notions et recommence !</p>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 text-center shadow-lg border border-white/20">
+                        <div class="text-3xl font-bold text-emerald-600 mb-2">${gameState.correctAnswers}</div>
+                        <div class="text-stone-600">Bonnes réponses</div>
                     </div>
-
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 text-center shadow-lg border border-white/20">
-                            <div class="text-3xl font-bold text-emerald-600 mb-2">${gameState.correctAnswers}</div>
-                            <div class="text-stone-600">Bonnes réponses</div>
-                        </div>
-                        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 text-center shadow-lg border border-white/20">
-                            <div class="text-3xl font-bold text-sky-600 mb-2">${accuracy}%</div>
-                            <div class="text-stone-600">Précision</div>
-                        </div>
-                        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 text-center shadow-lg border border-white/20">
-                            <div class="text-3xl font-bold text-amber-600 mb-2">${gameState.score}</div>
-                            <div class="text-stone-600">Points totaux</div>
-                        </div>
-                        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 text-center shadow-lg border border-white/20">
-                            <div class="text-3xl font-bold text-purple-600 mb-2">${Math.floor(totalTime / 60)}:${(totalTime % 60).toString().padStart(2, '0')}</div>
-                            <div class="text-stone-600">Temps total</div>
-                        </div>
+                    <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 text-center shadow-lg border border-white/20">
+                        <div class="text-3xl font-bold text-sky-600 mb-2">${accuracy}%</div>
+                        <div class="text-stone-600">Précision</div>
                     </div>
-
-                    ${gameState.timeBonus > 0 ? `
-                        <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6 mb-8">
-                            <div class="flex items-center justify-center space-x-3">
-                                <span class="text-2xl">⚡</span>
-                                <div class="text-center">
-                                    <div class="font-bold text-amber-700 text-lg">Bonus vitesse !</div>
-                                    <div class="text-amber-600">+${gameState.timeBonus} points pour tes réponses rapides</div>
-                                </div>
-                            </div>
-                        </div>
-                    ` : ''}
-
-                    <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 mb-8">
-                        <h2 class="text-xl font-bold text-stone-800 mb-4">Détail des questions</h2>
-                        <div class="space-y-3">
-                            ${gameState.answers.map((answer, index) => {
-                                const question = gameState.questions[index];
-                                const icon = answer.skipped ? '⏭️' : answer.timeout ? '⏰' : answer.isCorrect ? '✅' : '❌';
-                                const status = answer.skipped ? 'Passée' : answer.timeout ? 'Temps dépassé' : answer.isCorrect ? 'Correcte' : 'Incorrecte';
-                                const points = answer.points + (answer.speedBonus || 0);
-                                
-                                return `
-                                    <div class="flex items-center justify-between p-4 border border-stone-200 rounded-lg">
-                                        <div class="flex items-center space-x-3">
-                                            <span class="text-xl">${icon}</span>
-                                            <div>
-                                                <div class="font-medium text-stone-800">${question.chapter} - ${question.notion}</div>
-                                                <div class="text-sm text-stone-500">${status}</div>
-                                            </div>
-                                        </div>
-                                        <div class="text-right">
-                                            <div class="font-bold text-stone-800">${points}</div>
-                                            <div class="text-xs text-stone-500">${answer.timeSpent}s</div>
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
+                    <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 text-center shadow-lg border border-white/20">
+                        <div class="text-3xl font-bold text-amber-600 mb-2">${gameState.score}</div>
+                        <div class="text-stone-600">Points totaux</div>
                     </div>
-
-                    <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                        <button onclick="CalculUpGame.showConfigScreen()" 
-                                class="px-8 py-3 bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-600 hover:to-sky-600 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl">
-                            Refaire un entraînement
-                        </button>
-                        <button onclick="CalculUpCore.navigateToScreen('home')" 
-                                class="px-8 py-3 bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold rounded-xl transition-colors">
-                            Retour à l'accueil
-                        </button>
-                        <button onclick="CalculUpCore.navigateToScreen('stats')" 
-                                class="px-8 py-3 bg-sky-100 hover:bg-sky-200 text-sky-700 font-semibold rounded-xl transition-colors">
-                            Voir mes statistiques
-                        </button>
+                    <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 text-center shadow-lg border border-white/20">
+                        <div class="text-3xl font-bold text-purple-600 mb-2">${Math.floor(totalTime / 60)}:${(totalTime % 60).toString().padStart(2, '0')}</div>
+                        <div class="text-stone-600">Temps total</div>
                     </div>
                 </div>
+
+                ${gameState.timeBonus > 0 ? `
+                    <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6 mb-8">
+                        <div class="flex items-center justify-center space-x-3">
+                            <span class="text-2xl">⚡</span>
+                            <div class="text-center">
+                                <div class="font-bold text-amber-700 text-lg">Bonus vitesse !</div>
+                                <div class="text-amber-600">+${gameState.timeBonus} points pour tes réponses rapides</div>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${hintsUsed > 0 ? `
+                    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8">
+                        <div class="flex items-center justify-center space-x-3">
+                            <span class="text-2xl">💡</span>
+                            <div class="text-center">
+                                <div class="font-bold text-amber-700 text-lg">Indices utilisés</div>
+                                <div class="text-amber-600">${hintsUsed} indice(s) utilisé(s) • -${hintPenalty} XP de pénalité</div>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 mb-8">
+                    <h2 class="text-xl font-bold text-stone-800 mb-4">Détail des questions</h2>
+                    <div class="space-y-3">
+                        ${gameState.answers.map((answer, index) => {
+                            const question = gameState.questions[index];
+                            const icon = answer.skipped ? '⏭️' : answer.timeout ? '⏰' : answer.isCorrect ? '✅' : '❌';
+                            const status = answer.skipped ? 'Passée' : answer.timeout ? 'Temps dépassé' : answer.isCorrect ? 'Correcte' : 'Incorrecte';
+                            const points = answer.points + (answer.speedBonus || 0);
+                            
+                            return `
+                                <div class="flex items-center justify-between p-4 border border-stone-200 rounded-lg">
+                                    <div class="flex items-center space-x-3">
+                                        <span class="text-xl">${icon}</span>
+                                        <div>
+                                            <div class="font-medium text-stone-800">${question.chapter} - ${question.notion}</div>
+                                            <div class="text-sm text-stone-500">
+                                                ${status}
+                                                ${answer.hintUsed ? ' • <span class="text-amber-600">Indice utilisé (-5 XP)</span>' : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="font-bold text-stone-800">${points}${answer.hintUsed ? ' <span class="text-xs text-amber-600">(-5)</span>' : ''}</div>
+                                        <div class="text-xs text-stone-500">${answer.timeSpent}s</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button onclick="CalculUpGame.showConfigScreen()" 
+                            class="px-8 py-3 bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-600 hover:to-sky-600 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl">
+                        Refaire un entraînement
+                    </button>
+                    <button onclick="CalculUpCore.navigateToScreen('home')" 
+                            class="px-8 py-3 bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold rounded-xl transition-colors">
+                        Retour à l'accueil
+                    </button>
+                    <button onclick="CalculUpCore.navigateToScreen('stats')" 
+                            class="px-8 py-3 bg-sky-100 hover:bg-sky-200 text-sky-700 font-semibold rounded-xl transition-colors">
+                        Voir mes statistiques
+                    </button>
+                </div>
             </div>
-        `;
-        
-        // CORRECTION CRITIQUE : Utiliser l'approche standard au lieu de updateMainContent
-        const root = document.getElementById('root');
-        root.innerHTML = html;
-        
-        saveSessionResults(totalXP);
-    }
+        </div>
+    `;
+    
+    const root = document.getElementById('root');
+    root.innerHTML = html;
+    
+    // 🆕 SAUVEGARDER IMMÉDIATEMENT ET RECHARGER DASHBOARD
+    saveSessionResults(totalXP);
+}
 
     async function saveSessionResults(xpGained) {
         try {
@@ -1127,23 +1450,62 @@ const CalculUpGame = (function() {
             const newCorrectAnswers = (user.stats?.correctAnswers || 0) + gameState.correctAnswers;
             const newAccuracy = newTotalQuestions > 0 ? (newCorrectAnswers / newTotalQuestions) * 100 : 0;
             const newXP = (user.xp || 0) + xpGained;
-            const newLevel = Math.floor(newXP / 500) + 1; // Recalcul automatique du niveau
+            const newLevel = Math.floor(newXP / 500) + 1;
+
+const today = new Date();
+today.setHours(0, 0, 0, 0); // Minuit pour comparaison
+
+const lastActivity = user.lastActivityDate ? new Date(user.lastActivityDate) : null;
+if (lastActivity) lastActivity.setHours(0, 0, 0, 0);
+
+const yesterday = new Date(today);
+yesterday.setDate(yesterday.getDate() - 1);
+
+let newStreak = user.streak || 0;
+
+if (!lastActivity || lastActivity.getTime() !== today.getTime()) {
+    // Première session du jour
+    if (lastActivity && lastActivity.getTime() === yesterday.getTime()) {
+        // Hier il y a eu activité → continuer le streak
+        newStreak += 1;
+    } else if (!lastActivity) {
+        // Toute première activité
+        newStreak = 1;
+    } else {
+        // Gap dans les jours → restart du streak
+        newStreak = 1;
+    }
+    
+    console.log('🔥 Streak mis à jour:', user.streak, '->', newStreak);
+}
             
-            // Mise à jour complète
+            // 🆕 MISE À JOUR FIRESTORE
             const updates = {
-                xp: newXP,
-                level: newLevel,
-                'stats.totalQuestions': newTotalQuestions,
-                'stats.correctAnswers': newCorrectAnswers,
-                'stats.accuracy': Math.round(newAccuracy),
-                'stats.sessionsThisWeek': (user.stats?.sessionsThisWeek || 0) + 1,
-                'stats.averageTime': Math.round((Date.now() - gameState.startTime) / 1000 / gameState.questions.length)
-            };
+    xp: newXP,
+    level: newLevel,
+    streak: newStreak,                           // 🆕 AJOUTER
+    lastActivityDate: today.toISOString(),       // 🆕 AJOUTER
+    'stats.totalQuestions': newTotalQuestions,
+    'stats.correctAnswers': newCorrectAnswers,
+    'stats.accuracy': Math.round(newAccuracy),
+    'stats.sessionsThisWeek': (user.stats?.sessionsThisWeek || 0) + 1,
+    'stats.averageTime': Math.round((Date.now() - gameState.startTime) / 1000 / gameState.questions.length)
+};
             
             const success = await CalculUpCore.updateUserData(updates);
             
             if (success) {
-                console.log('✅ Résultats sauvegardés - XP:', newXP, 'Niveau:', newLevel);
+                // 🆕 MISE À JOUR IMMÉDIATE DE L'OBJET USER LOCAL
+                user.xp = newXP;
+                user.level = newLevel;
+                user.stats = user.stats || {};
+                user.stats.totalQuestions = newTotalQuestions;
+                user.stats.correctAnswers = newCorrectAnswers;
+                user.stats.accuracy = Math.round(newAccuracy);
+                user.stats.sessionsThisWeek = (user.stats.sessionsThisWeek || 0) + 1;
+                user.stats.averageTime = Math.round((Date.now() - gameState.startTime) / 1000 / gameState.questions.length);
+                
+                console.log('✅ Résultats sauvegardés et user mis à jour - XP:', newXP, 'Niveau:', newLevel);
                 
                 // Vérifier déblocage de niveau
                 if (newLevel > (user.level || 1)) {
@@ -1168,6 +1530,7 @@ const CalculUpGame = (function() {
         showConfigScreen,
         showGameSetupScreen: showConfigScreen,
         selectQuestionCount,
+        selectQuestionType,           // 🆕 NOUVEAU
         updateConfigPreview,
         startSession,
         
@@ -1184,11 +1547,12 @@ const CalculUpGame = (function() {
         showMathKeyboard,
         insertMathSymbol,
         clearAnswer,
-        setupMathKeyboardShortcuts,
         
-        // Utilitaires
-        showHint,
-        reportQuestion,
+        // Fonctionnalités améliorées
+        showHint,                     // 🆕 CORRIGÉ
+        showReportDialog,             // 🆕 NOUVEAU
+        closeReportDialog,            // 🆕 NOUVEAU
+        submitReport,                 // 🆕 NOUVEAU
         
         // Résultats
         showResultsScreen,

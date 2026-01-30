@@ -1,5 +1,5 @@
 /**
- * CALCUL UP - MODULE DONNÉES
+ * CALCUL UP - MODULE DONNÉES (VERSION MISE À JOUR)
  * Constantes, configuration et base de données
  */
 
@@ -20,16 +20,17 @@ window.CalculUpData = (function() {
     };
 
     // =============================================================================
-    // NIVEAUX DE FONCTIONNALITÉS DÉBLOQUABLES
+    // NIVEAUX DE FONCTIONNALITÉS DÉBLOQUABLES (🆕 MODIFIÉ)
     // =============================================================================
     
     const FEATURE_LEVELS = {
-        addFriends: 3,
-        multiplayer: 5,
+        createQuestions: 2,
+        multiplayer: 3,        // 🆕 AVANT addFriends
+        addFriends: 5,         // 🆕 APRÈS multiplayer
         joinTournaments: 7,
         createTournaments: 10,
-        createQuestions: 2,
-        becomeAdmin: 20
+        validateReports: 15    // 🆕 POUR ENSEIGNANTS
+        // 🆕 SUPPRIMÉ : becomeAdmin (plus possible pour élèves)
     };
 
     // =============================================================================
@@ -214,6 +215,7 @@ window.CalculUpData = (function() {
             notion: "Équations du 1er degré",
             difficulty: "facile",
             hint: "Isole x en soustrayant 7 puis en divisant par 3",
+            explanation: "3x = 22 - 7 = 15, donc x = 15/3 = 5",
             points: 8,
             timeLimit: 20,
             level: 'seconde',
@@ -230,6 +232,7 @@ window.CalculUpData = (function() {
             notion: "Inéquations",
             difficulty: "moyen",
             hint: "Ajoute 3 puis divise par 2, sans changer le sens de l'inégalité",
+            explanation: "2x > 7 + 3 = 10, donc x > 5",
             points: 10,
             timeLimit: 25,
             level: 'seconde',
@@ -248,6 +251,7 @@ window.CalculUpData = (function() {
             notion: "Fonctions de référence",
             difficulty: "facile",
             hint: "Remplace x par 2 dans l'expression : f(2) = 2² - 3×2 + 1",
+            explanation: "f(2) = 4 - 6 + 1 = -1",
             points: 8,
             timeLimit: 20,
             level: 'seconde',
@@ -264,6 +268,7 @@ window.CalculUpData = (function() {
             notion: "Identités remarquables",
             difficulty: "facile",
             hint: "(a+b)² = a² + 2ab + b²",
+            explanation: "(x+3)² = x² + 2×x×3 + 3² = x² + 6x + 9",
             points: 8,
             timeLimit: 20,
             level: 'seconde',
@@ -282,6 +287,7 @@ window.CalculUpData = (function() {
             notion: "Triangles",
             difficulty: "facile",
             hint: "Utilise le théorème de Pythagore : BC² = AB² + AC²",
+            explanation: "BC² = 3² + 4² = 9 + 16 = 25, donc BC = 5",
             points: 10,
             timeLimit: 25,
             level: 'seconde',
@@ -298,6 +304,7 @@ window.CalculUpData = (function() {
             notion: "Cosinus",
             difficulty: "moyen",
             hint: "C'est une valeur remarquable à connaître par cœur",
+            explanation: "cos(60°) = 1/2 (valeur trigonométrique fondamentale)",
             points: 10,
             timeLimit: 15,
             level: 'seconde',
@@ -317,6 +324,7 @@ window.CalculUpData = (function() {
             notion: "Dérivées usuelles",
             difficulty: "facile",
             hint: "Utilise la règle : (xⁿ)' = n·xⁿ⁻¹ et (ax+b)' = a",
+            explanation: "(3x²)' = 6x, (-5x)' = -5, (2)' = 0",
             points: 10,
             timeLimit: 25,
             level: 'premiere',
@@ -333,6 +341,7 @@ window.CalculUpData = (function() {
             notion: "Opérations sur les dérivées",
             difficulty: "moyen",
             hint: "Utilise la règle (u×v)' = u'×v + u×v' ou développe d'abord",
+            explanation: "Développement : f(x) = 2x³ + x² - 6x - 3, donc f'(x) = 6x² + 2x - 6",
             points: 15,
             timeLimit: 35,
             level: 'premiere',
@@ -349,6 +358,7 @@ window.CalculUpData = (function() {
             notion: "Dérivée",
             difficulty: "facile",
             hint: "La fonction exponentielle est égale à sa propre dérivée",
+            explanation: "La fonction exponentielle a la propriété remarquable d'être égale à sa dérivée",
             points: 8,
             timeLimit: 15,
             level: 'premiere',
@@ -367,6 +377,7 @@ window.CalculUpData = (function() {
             notion: "Suites géométriques",
             difficulty: "moyen",
             hint: "Calcule terme après terme : u₂ = 2×3+1 = 7, u₃ = 2×7+1 = 15...",
+            explanation: "u₂ = 7, u₃ = 15, u₄ = 31, u₅ = 63",
             points: 15,
             timeLimit: 40,
             level: 'premiere',
@@ -383,6 +394,7 @@ window.CalculUpData = (function() {
             notion: "Suites géométriques",
             difficulty: "moyen",
             hint: "Dans une suite géométrique : uₙ = u₁ × qⁿ⁻¹",
+            explanation: "u₄ = 4 × 3³ = 4 × 27 = 108",
             points: 12,
             timeLimit: 25,
             level: 'premiere',
@@ -401,6 +413,7 @@ window.CalculUpData = (function() {
             notion: "Indépendance",
             difficulty: "moyen",
             hint: "Pour des événements indépendants : P(A ∩ B) = P(A) × P(B)",
+            explanation: "P(A ∩ B) = 0.3 × 0.4 = 0.12",
             points: 15,
             timeLimit: 30,
             level: 'premiere',
@@ -417,6 +430,7 @@ window.CalculUpData = (function() {
             notion: "Paramètres",
             difficulty: "facile",
             hint: "Pour une loi binomiale B(n,p) : E(X) = n×p",
+            explanation: "E(X) = 10 × 0.3 = 3",
             points: 10,
             timeLimit: 20,
             level: 'premiere',
@@ -435,6 +449,7 @@ window.CalculUpData = (function() {
             notion: "Équations",
             difficulty: "moyen",
             hint: "Pense au cercle trigonométrique et aux angles remarquables",
+            explanation: "cos(x) = 1/2 pour x = π/3 et x = 5π/3",
             points: 15,
             timeLimit: 35,
             level: 'premiere',
@@ -454,6 +469,7 @@ window.CalculUpData = (function() {
             notion: "Propriétés",
             difficulty: "facile",
             hint: "ln et exp sont des fonctions réciproques",
+            explanation: "ln(e³) = 3 car ln et exp se simplifient",
             points: 8,
             timeLimit: 15,
             level: 'terminale',
@@ -470,6 +486,7 @@ window.CalculUpData = (function() {
             notion: "Dérivée",
             difficulty: "facile",
             hint: "C'est une dérivée fondamentale à connaître par cœur",
+            explanation: "(ln(x))' = 1/x pour x > 0",
             points: 8,
             timeLimit: 15,
             level: 'terminale',
@@ -488,6 +505,7 @@ window.CalculUpData = (function() {
             notion: "Primitives usuelles",
             difficulty: "moyen",
             hint: "La primitive de 2x est x²",
+            explanation: "∫₀¹ 2x dx = [x²]₀¹ = 1² - 0² = 1",
             points: 12,
             timeLimit: 30,
             level: 'terminale',
@@ -504,6 +522,7 @@ window.CalculUpData = (function() {
             notion: "Primitives usuelles",
             difficulty: "moyen",
             hint: "La primitive de xⁿ est xⁿ⁺¹/(n+1)",
+            explanation: "Une primitive est x³ + x² - x + C (avec C constante)",
             points: 12,
             timeLimit: 25,
             level: 'terminale',
@@ -522,6 +541,7 @@ window.CalculUpData = (function() {
             notion: "Loi normale",
             difficulty: "facile",
             hint: "Dans une loi normale, moyenne = médiane",
+            explanation: "Dans une loi normale, la médiane égale la moyenne",
             points: 8,
             timeLimit: 20,
             level: 'terminale',
@@ -531,40 +551,36 @@ window.CalculUpData = (function() {
     ];
 
     // =============================================================================
-    // DOMAINES ACADÉMIQUES POUR VALIDATION ENSEIGNANTS
+    // DOMAINES ACADÉMIQUES POUR VALIDATION ENSEIGNANTS (VERSION ÉTENDUE)
     // =============================================================================
-    
-    // =============================================================================
-// DOMAINES ACADÉMIQUES POUR VALIDATION ENSEIGNANTS (VERSION ÉTENDUE)
-// =============================================================================
 
-const ACADEMIC_DOMAINS = [
-    // Domaines académiques officiels France
-    'ac-aix-marseille.fr', 'ac-amiens.fr', 'ac-besancon.fr', 'ac-bordeaux.fr',
-    'ac-caen.fr', 'ac-clermont.fr', 'ac-corse.fr', 'ac-creteil.fr',
-    'ac-dijon.fr', 'ac-grenoble.fr', 'ac-lille.fr', 'ac-limoges.fr',
-    'ac-lyon.fr', 'ac-montpellier.fr', 'ac-nancy-metz.fr', 'ac-nantes.fr',
-    'ac-nice.fr', 'ac-orleans-tours.fr', 'ac-paris.fr', 'ac-poitiers.fr',
-    'ac-reims.fr', 'ac-rennes.fr', 'ac-rouen.fr', 'ac-strasbourg.fr',
-    'ac-toulouse.fr', 'ac-versailles.fr',
-    
-    // Autres domaines éducation
-    'education.gouv.fr', 'educagri.fr', 'cned.fr',
-    
-    // Universités et établissements
-    'univ-', '.edu', 'sorbonne-universite.fr', 'u-paris.fr',
-    'polytechnique.edu', 'ens.fr', 'centrale-', 'mines-',
-    
-    // Établissements scolaires
-    'lycee', 'college', 'ecole', 'institution',
-    
-    // DOM-TOM
-    'ac-guadeloupe.fr', 'ac-guyane.fr', 'ac-martinique.fr', 'ac-reunion.fr',
-    'ac-mayotte.fr', 'ac-nouvelle-caledonie.nc', 'ac-polynesie.pf',
-    
-    // International francophone
-    'ac-', '.edu.', 'univ.', 'lycee.'
-];
+    const ACADEMIC_DOMAINS = [
+        // Domaines académiques officiels France
+        'ac-aix-marseille.fr', 'ac-amiens.fr', 'ac-besancon.fr', 'ac-bordeaux.fr',
+        'ac-caen.fr', 'ac-clermont.fr', 'ac-corse.fr', 'ac-creteil.fr',
+        'ac-dijon.fr', 'ac-grenoble.fr', 'ac-lille.fr', 'ac-limoges.fr',
+        'ac-lyon.fr', 'ac-montpellier.fr', 'ac-nancy-metz.fr', 'ac-nantes.fr',
+        'ac-nice.fr', 'ac-orleans-tours.fr', 'ac-paris.fr', 'ac-poitiers.fr',
+        'ac-reims.fr', 'ac-rennes.fr', 'ac-rouen.fr', 'ac-strasbourg.fr',
+        'ac-toulouse.fr', 'ac-versailles.fr',
+        
+        // Autres domaines éducation
+        'education.gouv.fr', 'educagri.fr', 'cned.fr',
+        
+        // Universités et établissements
+        'univ-', '.edu', 'sorbonne-universite.fr', 'u-paris.fr',
+        'polytechnique.edu', 'ens.fr', 'centrale-', 'mines-',
+        
+        // Établissements scolaires
+        'lycee', 'college', 'ecole', 'institution',
+        
+        // DOM-TOM
+        'ac-guadeloupe.fr', 'ac-guyane.fr', 'ac-martinique.fr', 'ac-reunion.fr',
+        'ac-mayotte.fr', 'ac-nouvelle-caledonie.nc', 'ac-polynesie.pf',
+        
+        // International francophone
+        'ac-', '.edu.', 'univ.', 'lycee.'
+    ];
 
     // =============================================================================
     // SYMBOLES MATHÉMATIQUES POUR CLAVIER
@@ -578,16 +594,78 @@ const ACADEMIC_DOMAINS = [
     ];
 
     // =============================================================================
-    // CONFIGURATION XP ET NIVEAUX
+    // CONFIGURATION XP ET NIVEAUX (🆕 MODIFIÉE)
     // =============================================================================
     
     const XP_CONFIG = {
         baseXpPerLevel: 500,
         bonusQuestionCorrect: 15,
         bonusSessionComplete: 25,
-        bonusQuestionCreated: 25,
-        bonusReportValidated: 10,
+        bonusQuestionCreated: 0,        // 🆕 PLUS DE POINTS À LA CRÉATION
+        bonusQuestionValidated: 5,      // 🆕 5 POINTS SI VALIDÉE
+        bonusQuestionExcellent: 10,     // 🆕 10 POINTS SI EXCELLENTE
+        bonusReportValidated: 10,       // 🆕 AUGMENTÉ pour signalement validé
+        bonusReportProcessed: 5,        // 🆕 NOUVEAU pour traiter signalement
         penaltyReportAbusive: -20
+    };
+
+    // =============================================================================
+    // TYPES DE SIGNALEMENT (🆕 AJOUTÉ)
+    // =============================================================================
+    
+    const REPORT_TYPES = {
+        question_error: {
+            label: 'Erreur dans l\'énoncé',
+            description: 'L\'énoncé contient une erreur ou est mal formulé'
+        },
+        answer_error: {
+            label: 'Réponse incorrecte',
+            description: 'La réponse donnée comme correcte est fausse'
+        },
+        answer_rejected_error: {
+            label: 'Ma réponse était correcte',
+            description: 'Ma réponse était juste mais a été rejetée'
+        },
+        inappropriate_content: {
+            label: 'Contenu inapproprié',
+            description: 'Contenu offensant ou non approprié'
+        },
+        technical_issue: {
+            label: 'Problème technique',
+            description: 'Bug ou problème d\'affichage'
+        }
+    };
+
+    // =============================================================================
+    // STATUTS DE COMPTE (🆕 AJOUTÉ)
+    // =============================================================================
+    
+    const ACCOUNT_STATUS = {
+        active: {
+            label: 'Actif',
+            color: 'emerald',
+            description: 'Compte actif avec tous les privilèges'
+        },
+        pending_verification: {
+            label: 'En attente de validation',
+            color: 'amber',
+            description: 'Compte en attente de validation par un administrateur'
+        },
+        provisional_access: {
+            label: 'Accès provisoire',
+            color: 'sky',
+            description: 'Accès limité en attendant validation complète'
+        },
+        suspended: {
+            label: 'Suspendu',
+            color: 'rose',
+            description: 'Compte temporairement suspendu'
+        },
+        banned: {
+            label: 'Banni',
+            color: 'red',
+            description: 'Compte définitivement banni'
+        }
     };
 
     // =============================================================================
@@ -618,6 +696,13 @@ const ACADEMIC_DOMAINS = [
             accountSuspended: "Compte suspendu",
             noQuestions: "Aucune question disponible",
             networkError: "Erreur réseau"
+        },
+        reports: {
+            submitted: "Signalement envoyé",
+            processed: "Signalement traité",
+            validated: "Signalement validé - Merci pour votre contribution !",
+            rejected: "Signalement rejeté",
+            thanksForHelp: "Merci d'aider à améliorer la qualité des questions !"
         }
     };
 
@@ -630,6 +715,8 @@ const ACADEMIC_DOMAINS = [
         getFirebaseConfig: () => FIREBASE_CONFIG,
         getFeatureLevels: () => FEATURE_LEVELS,
         getXpConfig: () => XP_CONFIG,
+        getReportTypes: () => REPORT_TYPES,         // 🆕 NOUVEAU
+        getAccountStatus: () => ACCOUNT_STATUS,     // 🆕 NOUVEAU
         
         // Curriculum
         getCurriculum: (level) => level ? CURRICULUM[level] : CURRICULUM,
@@ -662,37 +749,39 @@ const ACADEMIC_DOMAINS = [
             if (filters.difficulty) {
                 questions = questions.filter(q => q.difficulty === filters.difficulty);
             }
+            if (filters.type) {  // 🆕 NOUVEAU FILTRE TYPE
+                questions = questions.filter(q => q.type === filters.type);
+            }
             
             return questions;
         },
         
         // Validation
-        // Validation (VERSION AMÉLIORÉE)
-isAcademicEmail: (email) => {
-    if (!email || typeof email !== 'string') return false;
-    
-    const emailLower = email.toLowerCase();
-    const domain = emailLower.split('@')[1];
-    
-    if (!domain) return false;
-    
-    // Vérification stricte des domaines académiques
-    return ACADEMIC_DOMAINS.some(acadDomain => {
-        if (acadDomain.endsWith('.')) {
-            // Domaines partiels comme "lycee." ou "univ."
-            return domain.includes(acadDomain.slice(0, -1));
-        } else if (acadDomain.startsWith('.')) {
-            // Extensions comme ".edu"
-            return domain.endsWith(acadDomain);
-        } else if (acadDomain.endsWith('-')) {
-            // Préfixes comme "ac-" ou "centrale-"
-            return domain.includes(acadDomain);
-        } else {
-            // Domaines complets
-            return domain === acadDomain || domain.endsWith('.' + acadDomain);
-        }
-    });
-},
+        isAcademicEmail: (email) => {
+            if (!email || typeof email !== 'string') return false;
+            
+            const emailLower = email.toLowerCase();
+            const domain = emailLower.split('@')[1];
+            
+            if (!domain) return false;
+            
+            // Vérification stricte des domaines académiques
+            return ACADEMIC_DOMAINS.some(acadDomain => {
+                if (acadDomain.endsWith('.')) {
+                    // Domaines partiels comme "lycee." ou "univ."
+                    return domain.includes(acadDomain.slice(0, -1));
+                } else if (acadDomain.startsWith('.')) {
+                    // Extensions comme ".edu"
+                    return domain.endsWith(acadDomain);
+                } else if (acadDomain.endsWith('-')) {
+                    // Préfixes comme "ac-" ou "centrale-"
+                    return domain.includes(acadDomain);
+                } else {
+                    // Domaines complets
+                    return domain === acadDomain || domain.endsWith('.' + acadDomain);
+                }
+            });
+        },
         
         // Utilitaires
         getMathSymbols: () => MATH_SYMBOLS,
@@ -735,6 +824,35 @@ isAcademicEmail: (email) => {
                 case 'difficile': return 18;
                 default: return 10;
             }
+        },
+        
+        // 🆕 NOUVELLES FONCTIONS POUR SIGNALEMENTS
+        getReportTypeInfo: (type) => REPORT_TYPES[type] || null,
+        getAccountStatusInfo: (status) => ACCOUNT_STATUS[status] || null,
+        
+        // 🆕 VÉRIFICATIONS DE PRIVILÈGES
+        canUserValidateReports: (user) => {
+            if (!user) return false;
+            if (user.type === 'admin') return true;
+            if (user.type === 'teacher' && user.status === 'active' && (user.level || 1) >= FEATURE_LEVELS.validateReports) return true;
+            return false;
         }
     };
 })();
+
+canUserAccessFeature: (user, feature) => {
+    if (!user) return false;
+    
+    // Fonctionnalités réservées aux enseignants/admins
+    const teacherOnlyFeatures = ['validateReports'];
+    
+    if (teacherOnlyFeatures.includes(feature)) {
+        return user.type === 'teacher' || user.type === 'admin';
+    }
+    
+    // Autres fonctionnalités selon niveau
+    const requiredLevel = FEATURE_LEVELS[feature];
+    return (user.level || 1) >= requiredLevel;
+}
+
+console.log('✅ Module CalculUpData chargé avec nouvelles fonctionnalités');

@@ -215,18 +215,17 @@ function showLoginScreen() {
                     </div>
                 </div>
 
-                <!-- Bouton mode démo -->
+                <!-- Bouton mode démo (sans Firebase) -->
                 <div class="mt-6 pt-6 border-t border-stone-200">
+                    <p class="text-xs text-stone-500 text-center mb-3">
+                        Pas de compte Firebase ? Testez l'application en mode démo
+                    </p>
                     <button
                         onclick="CalculUpDemo.showDemoLoginScreen()"
-                        class="w-full bg-violet-100 hover:bg-violet-200 text-violet-700 font-medium py-3 px-6 rounded-xl transition-all flex items-center justify-center space-x-2"
+                        class="w-full bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white font-medium py-2.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg text-sm"
                     >
-                        <span>🎭</span>
-                        <span>Mode Démonstration (sans Firebase)</span>
+                        Mode Démonstration (sans Firebase)
                     </button>
-                    <p class="text-xs text-center text-stone-500 mt-2">
-                        Testez l'application avec des comptes de test locaux
-                    </p>
                 </div>
             </div>
         </div>
@@ -342,40 +341,27 @@ function toggleAuthMode() {
 
 async function handleAuth(event) {
     event.preventDefault();
-
+    
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
-
+    
     // Détecter le mode depuis l'interface (plus fiable)
     const submitButton = document.getElementById('auth-submit');
     const isCurrentlyRegistration = submitButton.textContent === 'Créer mon compte';
-
+    
     console.log('🔍 Mode détecté:', isCurrentlyRegistration ? 'inscription' : 'connexion');
     console.log('🔍 isRegistrationMode variable:', isRegistrationMode);
-
+    
     if (!validateEmail(email)) {
         CalculUpCore.showError('Adresse email invalide');
         return;
     }
-
+    
     if (!validatePassword(password)) {
         CalculUpCore.showError('Le mot de passe doit contenir au moins 6 caractères');
         return;
     }
-
-    // Vérifier si Firebase est disponible
-    const auth = CalculUpCore.getAuth();
-    if (!auth) {
-        CalculUpCore.showError('Firebase non disponible. Utilisez le mode démonstration.');
-        // Proposer automatiquement le mode démo
-        setTimeout(() => {
-            if (confirm('Firebase n\'est pas disponible. Voulez-vous utiliser le mode démonstration ?')) {
-                CalculUpDemo.showDemoLoginScreen();
-            }
-        }, 1000);
-        return;
-    }
-
+    
     CalculUpCore.showLoading(isCurrentlyRegistration ? 'Création du compte...' : 'Connexion...');
     
     try {
@@ -407,21 +393,7 @@ async function handleAuth(event) {
         }
     } catch (error) {
         console.error('❌ Erreur auth:', error);
-
-        // Si erreur réseau ou Firebase non dispo, proposer mode démo
-        if (error.code === 'auth/network-request-failed' ||
-            error.message?.includes('network') ||
-            error.message?.includes('Firebase') ||
-            !CalculUpCore.isFirebaseReady()) {
-            CalculUpCore.showError('Connexion impossible. Firebase semble indisponible.');
-            setTimeout(() => {
-                if (confirm('Voulez-vous utiliser le mode démonstration à la place ?')) {
-                    CalculUpDemo.showDemoLoginScreen();
-                }
-            }, 500);
-        } else {
-            CalculUpCore.showError(CalculUpCore.formatError(error));
-        }
+        CalculUpCore.showError(CalculUpCore.formatError(error));
     } finally {
         CalculUpCore.hideLoading();
     }
@@ -643,18 +615,19 @@ async function handleLogout() {
     try {
         CalculUpCore.showLoading('Déconnexion...');
 
-        // Mode démo : utiliser la déconnexion locale
-        if (CalculUpCore.isDemoMode && CalculUpCore.isDemoMode()) {
+        // Vérifier si on est en mode démo
+        if (window.CalculUpDemo && CalculUpDemo.isDemoModeActive()) {
+            console.log('🎭 Déconnexion mode démo...');
             CalculUpDemo.demoLogout();
-            console.log('✅ Déconnexion démo réussie');
+            CalculUpDemo.disableDemoMode();
             CalculUpCore.showSuccess('👋 À bientôt !');
-            CalculUpDemo.showDemoLoginScreen();
-            return;
+            showLoginScreen();
+        } else {
+            // Déconnexion Firebase normale
+            await CalculUpCore.getAuth().signOut();
+            console.log('✅ Déconnexion réussie');
+            CalculUpCore.showSuccess('👋 À bientôt !');
         }
-
-        await CalculUpCore.getAuth().signOut();
-        console.log('✅ Déconnexion réussie');
-        CalculUpCore.showSuccess('👋 À bientôt !');
     } catch (error) {
         console.error('❌ Erreur déconnexion:', error);
         CalculUpCore.showError('Erreur lors de la déconnexion');

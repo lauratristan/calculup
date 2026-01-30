@@ -9,10 +9,10 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Firebase v10 CDN (latest compat version) -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- Firebase v9 CDN -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     
     <!-- Favicon -->
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -34,8 +34,9 @@
     <!-- Modules JavaScript -->
     <script src="calcul-up-data.js"></script>
     <script src="calcul-up-core.js"></script>
-    <script src="calcul-up-demo.js"></script>
+    <script src="calcul-up-demo.js"></script>  <!-- Mode démonstration sans Firebase -->
     <script src="calcul-up-auth.js"></script>
+    <script src="calcul-up-reports.js"></script>
     <script src="calcul-up-user.js"></script>
     <script src="calcul-up-questions.js"></script>
     <script src="calcul-up-game.js"></script>
@@ -47,12 +48,13 @@
         window.addEventListener('load', () => {
             console.log('🚀 Démarrage Calcul Up Enhanced...');
 
-            // Vérifier si le mode démo était actif
-            if (CalculUpDemo.isDemoModeActive()) {
-                console.log('🎭 Mode démo détecté - Restauration session...');
+            // Vérifier si mode démo actif depuis session précédente
+            if (window.CalculUpDemo && CalculUpDemo.isDemoModeActive()) {
+                console.log('🎭 Session démo détectée...');
                 const demoUser = CalculUpDemo.getCurrentDemoUser();
                 if (demoUser) {
-                    // Restaurer la session démo
+                    console.log('🎭 Restauration session démo pour:', demoUser.identifier);
+                    // Naviguer vers l'écran approprié selon le type d'utilisateur
                     if (demoUser.type === 'admin') {
                         CalculUpCore.navigateToScreen('admin-dashboard');
                     } else if (demoUser.type === 'teacher') {
@@ -61,10 +63,11 @@
                         CalculUpCore.navigateToScreen('home');
                     }
                 } else {
+                    // Pas d'utilisateur démo, montrer l'écran de login démo
                     CalculUpDemo.showDemoLoginScreen();
                 }
             } else {
-                // Mode normal avec Firebase
+                // Initialisation normale Firebase
                 CalculUpCore.initialize();
             }
         });

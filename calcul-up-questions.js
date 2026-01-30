@@ -1,7 +1,6 @@
 // =============================================================================
-// CALCUL UP - MODULE QUESTIONS (VERSION COMPLÈTE FONCTIONNELLE)
-// Gestion de la création, validation et modération des questions utilisateur
-// MODIFIÉ : Limitations d'accès pour enseignants non-validés
+// CALCUL UP - MODULE QUESTIONS (VERSION MISE À JOUR)
+// Nouveau système de points : 0 à la création, 5-10 selon validation
 // =============================================================================
 
 const CalculUpQuestions = (function() {
@@ -29,7 +28,7 @@ const CalculUpQuestions = (function() {
     let activeMathKeyboard = null;
 
     // ==========================================================================
-    // CONSTANTES ET CONFIGURATION
+    // CONSTANTES ET CONFIGURATION (🆕 MODIFIÉES)
     // ==========================================================================
     
     const MATH_SYMBOLS = [
@@ -53,10 +52,11 @@ const CalculUpQuestions = (function() {
         { char: 'θ', name: 'Thêta' }
     ];
 
+    // 🆕 NOUVEAU SYSTÈME DE RÉCOMPENSES
     const QUESTION_REWARDS = {
-        creation: 50,      // Points pour créer une question
-        validation: 25,    // Bonus si validée par admin
-        feedback: 10       // Bonus pour chaque retour utilisateur positif
+        creation: 0,           // PLUS DE POINTS À LA CRÉATION
+        validated: 5,          // 5 POINTS SI VALIDÉE
+        excellent: 10          // 10 POINTS SI EXCELLENTE
     };
 
     const DIFFICULTY_SETTINGS = {
@@ -69,27 +69,17 @@ const CalculUpQuestions = (function() {
     // UTILITAIRES ET HELPERS
     // ==========================================================================
 
-    // 🆕 FONCTION DE VÉRIFICATION D'ACCÈS AUX RÉPONSES
     function canUserSeeAnswers() {
         const user = CalculUpCore.getUser();
         
-        // Cas 1: Pas d'utilisateur connecté - pas d'accès
         if (!user) return false;
-        
-        // Cas 2: Élève ou admin - accès complet
         if (user.type === 'student' || user.type === 'admin') return true;
-        
-        // Cas 3: Enseignant avec statut validé - accès complet
         if (user.type === 'teacher' && user.status === 'active') return true;
-        
-        // Cas 4: Enseignant non-validé - pas d'accès aux réponses
         if (user.type === 'teacher' && user.status !== 'active') return false;
         
-        // Par défaut - accès accordé
         return true;
     }
 
-    // 🆕 FONCTION POUR GÉNÉRER LE MESSAGE DE LIMITATION
     function getAnswerLimitationMessage() {
         const user = CalculUpCore.getUser();
         
@@ -213,7 +203,7 @@ const CalculUpQuestions = (function() {
     }
 
     // ==========================================================================
-    // ÉCRAN PRINCIPAL DE CRÉATION
+    // ÉCRAN PRINCIPAL DE CRÉATION (🆕 AVEC NOUVEAU SYSTÈME)
     // ==========================================================================
 
     function showQuestionCreationScreen() {
@@ -223,8 +213,10 @@ const CalculUpQuestions = (function() {
         const userLevel = user?.schoolLevel || 'seconde';
         const curriculum = CalculUpData.getCurriculum(userLevel);
         
-        // 🆕 Bannière de limitation pour enseignants non-validés
         const isTeacherProvisional = user?.type === 'teacher' && user?.status === 'provisional_access';
+        const isStudent = user?.type === 'student';
+        
+        // 🆕 NOUVEAU SYSTÈME DE RÉCOMPENSES
         const teacherLimitationBanner = isTeacherProvisional ? `
             <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
                 <div class="flex">
@@ -239,16 +231,12 @@ const CalculUpQuestions = (function() {
                         </h3>
                         <div class="mt-2 text-sm text-amber-700">
                             <p>Vos questions créées nécessiteront également une validation admin avant publication. 
-                            Vous recevrez <strong>15 XP</strong> par question au lieu de 25 XP.</p>
+                            Récompenses après validation seulement.</p>
                         </div>
                     </div>
                 </div>
             </div>
         ` : '';
-        
-        // 🆕 Ajuster les récompenses selon le statut
-        const creationReward = isTeacherProvisional ? 15 : QUESTION_REWARDS.creation;
-        const validationBonus = isTeacherProvisional ? 10 : QUESTION_REWARDS.validation;
         
         const html = `
             <div class="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 p-4">
@@ -269,23 +257,26 @@ const CalculUpQuestions = (function() {
 
                     ${teacherLimitationBanner}
 
-                    <!-- Récompenses de création -->
-                    <div class="bg-gradient-to-r from-emerald-50 to-sky-50 border border-emerald-200 rounded-2xl p-6 mb-6">
+                    <!-- 🆕 NOUVEAU SYSTÈME DE RÉCOMPENSES -->
+                    <div class="bg-gradient-to-r from-sky-50 to-emerald-50 border border-sky-200 rounded-2xl p-6 mb-6">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-3">
                                 <span class="text-3xl">🎁</span>
                                 <div>
-                                    <h3 class="text-lg font-semibold text-emerald-800">Récompenses de création</h3>
-                                    <p class="text-emerald-700 text-sm">
-                                        <span class="font-bold">+${creationReward} points</span> pour cette création • 
-                                        <span class="font-bold">+${validationBonus} points bonus</span> si validée par un enseignant
-                                        ${isTeacherProvisional ? '<br><span class="text-amber-600">⚠️ Récompenses réduites - compte en attente de validation</span>' : ''}
+                                    <h3 class="text-lg font-semibold text-sky-800">Système de récompenses</h3>
+                                    <p class="text-sky-700 text-sm">
+                                        <span class="font-bold">Aucun point</span> à la création • 
+                                        <span class="font-bold">+5 points</span> si validée • 
+                                        <span class="font-bold">+10 points</span> si excellente
+                                    </p>
+                                    <p class="text-sky-600 text-xs mt-1">
+                                        💡 Les points sont attribués après validation par nos modérateurs
                                     </p>
                                 </div>
                             </div>
                             <div class="text-right">
-                                <div class="text-2xl font-bold text-emerald-600">Jusqu'à ${creationReward + validationBonus} pts</div>
-                                <div class="text-xs text-emerald-600">selon qualité</div>
+                                <div class="text-2xl font-bold text-sky-600">5-10 pts</div>
+                                <div class="text-xs text-sky-600">après validation</div>
                             </div>
                         </div>
                     </div>
@@ -401,19 +392,28 @@ const CalculUpQuestions = (function() {
                         </div>
                     </div>
 
-                    <!-- Avertissement validation admin -->
+                    <!-- Avertissement validation -->
                     <div class="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-6">
                         <div class="flex items-start space-x-3">
                             <span class="text-2xl">👨‍🏫</span>
                             <div>
-                                <h3 class="text-lg font-semibold text-blue-800 mb-2">Validation par un enseignant</h3>
+                                <h3 class="text-lg font-semibold text-blue-800 mb-2">Validation par un modérateur</h3>
                                 <p class="text-blue-700 mb-3">
-                                    Votre question sera envoyée à nos enseignants pour validation avant publication. 
+                                    Votre question sera envoyée à nos modérateurs (enseignants ou administrateurs) pour validation avant publication. 
                                     Cela garantit la qualité pédagogique de nos contenus.
-                                    ${isTeacherProvisional ? '<br><span class="text-amber-600">⚠️ Validation admin requise car votre compte est en attente.</span>' : ''}
                                 </p>
-                                <div class="text-sm text-blue-600">
-                                    ⏱️ Délai habituel : 24-48h • 📧 Vous serez notifié par email
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-600">
+                                    <div class="bg-blue-100 p-3 rounded-lg">
+                                        <strong>✅ Si validée :</strong><br>
+                                        +5 points XP
+                                    </div>
+                                    <div class="bg-emerald-100 p-3 rounded-lg">
+                                        <strong>🌟 Si excellente :</strong><br>
+                                        +10 points XP
+                                    </div>
+                                </div>
+                                <div class="mt-3 text-sm text-blue-600">
+                                    ⏱️ Délai habituel : 24-48h • 🔔 Le statut sera visible sur votre tableau de bord
                                 </div>
                             </div>
                         </div>
@@ -538,43 +538,142 @@ const CalculUpQuestions = (function() {
         }
     }
 
+    // 🆕 FONCTION MISE À JOUR : Affichage des questions utilisateur
     function renderUserQuestionsList() {
-        const user = CalculUpCore.getUser();
-        const userQuestions = user?.createdQuestions || [];
-        
-        if (userQuestions.length === 0) {
-            return `
-                <div class="text-center text-stone-500 py-8">
-                    <div class="text-4xl mb-4">📝</div>
-                    <p>Vous n'avez pas encore créé de questions.</p>
-                    <p class="text-sm">Commencez par créer votre première question ci-dessus !</p>
-                </div>
-            `;
-        }
-        
+    const user = CalculUpCore.getUser();
+    const userQuestions = user?.createdQuestions || [];
+    
+    if (userQuestions.length === 0) {
         return `
-            <div class="space-y-3">
-                ${userQuestions.map(question => `
+            <div class="text-center text-stone-500 py-8">
+                <div class="text-4xl mb-4">📝</div>
+                <p>Vous n'avez pas encore créé de questions.</p>
+                <p class="text-sm">Commencez par créer votre première question ci-dessus !</p>
+            </div>
+        `;
+    }
+    
+    return `
+        <div class="space-y-3">
+            ${userQuestions.map(question => {
+                // 🆕 DÉTERMINER LES POINTS ET STATUT SELON LE NOUVEAU SYSTÈME
+                let earnedPoints = question.earnedPoints || 0;
+                let statusBadge = '';
+                let statusIcon = '';
+                let statusText = '';
+                
+                if (question.status === 'pending' || !question.verified) {
+                    statusBadge = 'bg-amber-100 text-amber-700';
+                    statusIcon = '⏳';
+                    statusText = 'En attente de validation';
+                } else if (question.status === 'validated') {
+                    statusBadge = 'bg-emerald-100 text-emerald-700';
+                    statusIcon = '✅';
+                    statusText = 'Validée (+5 XP)';
+                } else if (question.status === 'excellent') {
+                    statusBadge = 'bg-violet-100 text-violet-700';
+                    statusIcon = '🌟';
+                    statusText = 'Excellente (+10 XP)';
+                } else if (question.status === 'rejected') {
+                    statusBadge = 'bg-rose-100 text-rose-700';
+                    statusIcon = '❌';
+                    statusText = 'Refusée';
+                } else {
+                    statusBadge = 'bg-stone-100 text-stone-700';
+                    statusIcon = '📝';
+                    statusText = 'Brouillon';
+                }
+                
+                // 🆕 INDICATEUR AUTO-VALIDATION pour enseignants
+                const isAutoValidated = question.verified && question.status === 'validated' && 
+                                       question.userType === 'teacher';
+                
+                return `
                     <div class="flex items-center justify-between p-4 border border-stone-200 rounded-lg">
                         <div>
                             <div class="font-medium text-stone-800">${question.chapter} - ${question.notion}</div>
                             <div class="text-sm text-stone-600 truncate max-w-md">${question.question}</div>
-                            <div class="text-xs text-stone-500 mt-1">
-                                ${question.status === 'pending' ? '⏳ En attente de validation' : 
-                                  question.status === 'approved' ? '✅ Approuvée' : 
-                                  question.status === 'rejected' ? '❌ Refusée' : '📝 Brouillon'}
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="text-xs ${statusBadge} px-2 py-1 rounded-full">
+                                    ${statusIcon} ${statusText}
+                                </span>
+                                ${isAutoValidated ? `
+                                    <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                                        🤖 Auto-validée
+                                    </span>
+                                ` : ''}
+                                ${question.moderatorNote ? `
+                                    <span class="text-xs text-stone-500" title="${question.moderatorNote}">
+                                        💬 Note du modérateur
+                                    </span>
+                                ` : ''}
                             </div>
                         </div>
                         <div class="text-right">
-                            <div class="text-lg font-bold text-emerald-600">+${question.earnedPoints || 0} pts</div>
-                            <div class="text-xs text-stone-500">${new Date(question.createdAt).toLocaleDateString()}</div>
+                            <div class="text-lg font-bold ${earnedPoints > 0 ? 'text-emerald-600' : 'text-stone-400'}">
+                                ${earnedPoints > 0 ? '+' : ''}${earnedPoints} XP
+                            </div>
+                            <div class="text-xs text-stone-500">
+                                ${new Date(question.createdAt || Date.now()).toLocaleDateString()}
+                            </div>
                         </div>
                     </div>
-                `).join('')}
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+// 🆕 NOUVELLE FONCTION : Bannière enseignant dans l'interface création
+function generateTeacherCreationBanner(user) {
+    if (user?.type !== 'teacher') return '';
+    
+    if (user.status === 'active') {
+        return `
+            <div class="bg-emerald-50 border-l-4 border-emerald-400 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-emerald-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-emerald-800">
+                            🎓 Privilège enseignant validé
+                        </h3>
+                        <div class="mt-2 text-sm text-emerald-700">
+                            <p><strong>Validation automatique :</strong> Vos questions sont publiées immédiatement sans modération.</p>
+                            <p><strong>Récompense :</strong> +5 XP attribués automatiquement à la création.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (user.status === 'provisional_access') {
+        return `
+            <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-amber-800">
+                            ⚠️ Compte avec accès provisoire
+                        </h3>
+                        <div class="mt-2 text-sm text-amber-700">
+                            <p>Vos questions nécessitent une validation admin avant publication.</p>
+                            <p><strong>Après validation complète de votre compte :</strong> Validation automatique activée.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
     }
-
+    
+    return '';
+}
     // ==========================================================================
     // GESTION DES FORMULAIRES
     // ==========================================================================
@@ -849,7 +948,6 @@ const CalculUpQuestions = (function() {
     // APERÇU ET VALIDATION
     // ==========================================================================
 
-    // 🆕 FONCTION MODIFIÉE AVEC LIMITATIONS D'ACCÈS
     function updateQuestionPreview() {
         collectQuestionData();
         const preview = document.getElementById('question-preview');
@@ -864,14 +962,11 @@ const CalculUpQuestions = (function() {
             return;
         }
         
-        // 🆕 Vérifier l'accès aux réponses
         const canSeeAnswers = canUserSeeAnswers();
         
-        // 🆕 Section des réponses conditionnelle
         let answerSection = '';
         
         if (canSeeAnswers) {
-            // ✅ Utilisateur autorisé - afficher les réponses complètes
             if (currentQuestion.type === 'qcm') {
                 answerSection = `
                     <div class="space-y-3">
@@ -899,11 +994,9 @@ const CalculUpQuestions = (function() {
                 `;
             }
         } else {
-            // ❌ Utilisateur non autorisé - afficher le message de limitation
             answerSection = getAnswerLimitationMessage();
         }
         
-        // 🆕 Explication et indice également limités
         let explanationSection = '';
         let hintSection = '';
         
@@ -1009,92 +1102,222 @@ const CalculUpQuestions = (function() {
         }
     }
 
-    async function submitQuestion() {
+    // 🔧 FONCTION SUBMITQUESTION CORRIGÉE
+    function submitQuestion() {
         collectQuestionData();
         
-        // Validation
         const errors = validateQuestionData(currentQuestion);
         if (errors.length > 0) {
             CalculUpCore.showError('Erreurs de validation :\n' + errors.join('\n'));
             return;
         }
         
+        // Appeler la fonction async séparément
+        submitQuestionAsync();
+    }
+
+    // 🔧 FONCTION ASYNC SÉPARÉE POUR LA SOUMISSION
+   // Dans calcul-up-questions.js, REMPLACER complètement la fonction submitQuestionAsync par :
+
+async function submitQuestionAsync() {
+    try {
+        const questionId = generateQuestionId();
+        const user = CalculUpCore.getUser();
+        
+        console.log('🔍 DEBUG - Utilisateur pour auto-validation:', {
+            type: user?.type,
+            status: user?.status,
+            uid: user?.uid,
+            identifier: user?.identifier
+        });
+        
+        // 🔧 CORRECTION : Vérification plus précise du statut enseignant
+        const isTeacherValidated = user?.type === 'teacher' && user?.status === 'active';
+        const isTeacherProvisional = user?.type === 'teacher' && 
+            (user?.status === 'provisional_access' || user?.status === 'pending_verification');
+        const isStudent = user?.type === 'student';
+        
+        console.log('🔍 DEBUG - Status checks:', {
+            isTeacherValidated,
+            isTeacherProvisional,
+            isStudent
+        });
+        
+        // 🆕 NOUVEAU : Déterminer statut et points selon type utilisateur
+        let questionStatus = 'pending';
+        let isVerified = false;
+        let earnedPoints = 0;
+        
+        if (isTeacherValidated) {
+            // Enseignant validé = auto-validation + 5 XP immédiat
+            questionStatus = 'validated';
+            isVerified = true;
+            earnedPoints = 5;
+            console.log('✅ ENSEIGNANT VALIDÉ - Auto-validation activée');
+        } else {
+            // Élève ou enseignant provisoire = validation requise + 0 XP
+            questionStatus = 'pending';
+            isVerified = false;
+            earnedPoints = 0;
+            console.log('⏳ VALIDATION MANUELLE requise');
+        }
+        
+        const questionData = {
+            ...currentQuestion,
+            id: questionId,
+            createdBy: user?.uid || 'anonymous',
+            createdByName: user?.firstname || 'Anonyme',
+            createdByIdentifier: user?.identifier || 'N/A',
+            createdByEmail: user?.email || 'N/A',
+            userType: user?.type || 'student',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            
+            // 🆕 NOUVEAU SYSTÈME : Statut selon type utilisateur
+            status: questionStatus,
+            verified: isVerified,
+            earnedPoints: earnedPoints,
+            
+            version: 1,
+            requiresAdminValidation: isTeacherProvisional,
+            level: user?.schoolLevel || 'seconde'
+        };
+        
+        console.log('📤 FINAL - Données question à sauvegarder:', {
+            userType: user?.type,
+            userStatus: user?.status,
+            questionStatus: questionStatus,
+            verified: isVerified,
+            earnedPoints: earnedPoints
+        });
+        
+        // 🆕 SAUVEGARDER EN BASE DE DONNÉES FIRESTORE
         try {
-            // Générer un ID unique
-            const questionId = generateQuestionId();
+            const db = CalculUpCore.getDb();
+            if (db) {
+                const docRef = await db.collection('questions').add(questionData);
+                console.log('✅ Question sauvegardée en BDD avec ID:', docRef.id);
+                questionData.id = docRef.id;
+            } else {
+                console.warn('⚠️ Base de données non disponible - sauvegarde locale seulement');
+            }
+        } catch (dbError) {
+            console.error('❌ Erreur sauvegarde BDD:', dbError);
+            console.log('📝 Continuons avec sauvegarde locale...');
+        }
+        
+        // Sauvegarder localement
+        if (user) {
+            if (!user.createdQuestions) user.createdQuestions = [];
+            user.createdQuestions.push(questionData);
             
-            // 🆕 Ajuster les récompenses selon le statut utilisateur
-            const user = CalculUpCore.getUser();
-            const isTeacherProvisional = user?.type === 'teacher' && user?.status === 'provisional_access';
-            const creationReward = isTeacherProvisional ? 15 : QUESTION_REWARDS.creation;
-            
-            // Préparer les données finales
-            const questionData = {
-                ...currentQuestion,
-                id: questionId,
-                createdBy: user?.email || 'anonymous',
-                createdAt: Date.now(),
-                status: 'pending',
-                earnedPoints: creationReward,
-                version: 1,
-                requiresAdminValidation: isTeacherProvisional // 🆕 Marqueur pour validation admin
+            // 🆕 Mettre à jour les stats utilisateur + XP immédiat si enseignant validé
+            const updates = {
+                'stats.questionsCreated': (user.stats?.questionsCreated || 0) + 1,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
             
-            console.log('📤 Soumission question:', questionData);
+            // 🆕 NOUVEAU : XP immédiat pour enseignants validés
+            if (isTeacherValidated) {
+                updates.xp = (user.xp || 0) + earnedPoints;
+                user.xp = (user.xp || 0) + earnedPoints; // Mise à jour locale immédiate
+                console.log('✅ XP ajoutés immédiatement:', earnedPoints, 'Total XP:', user.xp);
+            }
             
-            // Sauvegarder localement (en attendant l'API)
-            if (user) {
-                if (!user.createdQuestions) user.createdQuestions = [];
-                user.createdQuestions.push(questionData);
-                CalculUpCore.saveUser(user);
+            try {
+                await CalculUpCore.updateUserData(updates);
+                console.log('✅ Stats utilisateur mises à jour');
                 
-                // Ajouter les points de création
-                user.points = (user.points || 0) + creationReward;
-                CalculUpCore.saveUser(user);
+                // Vérifier montée de niveau si XP ajoutés
+                if (isTeacherValidated) {
+                    await CalculUpCore.checkLevelUp(user.uid, user.xp);
+                }
+            } catch (updateError) {
+                console.warn('⚠️ Erreur mise à jour stats:', updateError);
             }
-            
-            // Ajouter à la queue de validation
-            validationQueue.push(questionData);
-            
-            // 🆕 Message de confirmation adapté selon le statut
-            let successMessage = '';
-            if (isTeacherProvisional) {
-                successMessage = `
-                    🎉 Question soumise avec succès ! 
-                    +${creationReward} points ajoutés à votre compte.
-                    
-                    ⚠️ Votre question nécessite une validation administrateur car votre compte dispose d'un accès provisoire.
-                    
-                    📧 Vous serez notifié par email du résultat.
-                `;
-            } else {
-                successMessage = `
-                    🎉 Question soumise avec succès ! 
-                    +${creationReward} points ajoutés à votre compte.
-                    
-                    👨‍🏫 Un enseignant va maintenant valider votre question.
-                    Si elle est approuvée, vous recevrez +${QUESTION_REWARDS.validation} points bonus !
-                    
-                    📧 Vous serez notifié par email du résultat.
-                `;
-            }
-            
+        }
+        
+        // 🆕 MESSAGES DIFFÉRENCIÉS selon le statut
+        if (isTeacherValidated) {
+            const successMessage = `
+                ✅ Question validée automatiquement ! 
+                
+                🎉 En tant qu'enseignant validé :
+                • Votre question est publiée immédiatement
+                • +5 XP ajoutés à votre compte
+                • Visible dans le catalogue pour tous
+                
+                👨‍🏫 Merci pour votre contribution à la communauté !
+            `;
             CalculUpCore.showSuccess(successMessage);
             
-            // Réinitialiser le formulaire
-            resetQuestionForm();
+        } else if (isTeacherProvisional) {
+            const provisionalMessage = `
+                📝 Question soumise pour validation ! 
+                
+                ⚠️ Compte avec accès provisoire :
+                • Validation admin requise avant publication
+                • +5 XP si validée, +10 XP si excellente
+                • Après validation complète de votre compte, vos futures questions seront auto-validées
+                
+                📧 Vous serez notifié du résultat.
+            `;
+            CalculUpCore.showInfo(provisionalMessage);
             
-            // Recharger la liste des questions
-            const questionsList = document.getElementById('user-questions-list');
-            if (questionsList) {
-                questionsList.innerHTML = renderUserQuestionsList();
-            }
-            
-        } catch (error) {
-            console.error('❌ Erreur soumission question:', error);
-            CalculUpCore.showError('Erreur lors de la soumission. Veuillez réessayer.');
+        } else {
+            // Élève
+            const studentMessage = `
+                📝 Question soumise pour validation ! 
+                
+                💡 Système de récompenses :
+                • +5 XP si validée par un modérateur
+                • +10 XP si jugée excellente
+                
+                👨‍🏫 Un modérateur va examiner votre question.
+                📧 Vous serez notifié du résultat.
+            `;
+            CalculUpCore.showSuccess(studentMessage);
         }
+        
+        // Créer notification admin seulement si validation requise
+        if (!isTeacherValidated) {
+            try {
+                const db = CalculUpCore.getDb();
+                if (db) {
+                    await db.collection('admin_notifications').add({
+                        type: 'question_validation',
+                        questionId: questionData.id,
+                        userId: user?.uid,
+                        userEmail: user?.email,
+                        userIdentifier: user?.identifier,
+                        userType: user?.type,
+                        questionTitle: currentQuestion.question.substring(0, 50) + '...',
+                        chapter: currentQuestion.chapter,
+                        status: 'pending',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log('✅ Notification admin créée');
+                }
+            } catch (notifError) {
+                console.warn('⚠️ Erreur notification admin:', notifError);
+            }
+        }
+        
+        // Réinitialiser le formulaire
+        resetQuestionForm();
+        
+        // Recharger la liste des questions
+        const questionsList = document.getElementById('user-questions-list');
+        if (questionsList) {
+            questionsList.innerHTML = renderUserQuestionsList();
+        }
+        
+    } catch (error) {
+        console.error('❌ Erreur soumission question:', error);
+        CalculUpCore.showError('Erreur lors de la soumission. Veuillez réessayer.');
     }
+}
+
 
     function resetQuestionForm() {
         // Réinitialiser l'objet question
@@ -1158,10 +1381,9 @@ const CalculUpQuestions = (function() {
     }
 
     // ==========================================================================
-    // 🆕 FONCTIONS POUR AFFICHAGE DES QUESTIONS EXISTANTES
+    // FONCTIONS POUR AFFICHAGE DES QUESTIONS EXISTANTES
     // ==========================================================================
 
-    // 🆕 Fonction pour afficher une question avec limitations
     function displayQuestion(questionData, containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -1229,7 +1451,6 @@ const CalculUpQuestions = (function() {
         container.innerHTML = questionHtml;
     }
 
-    // 🆕 Fonction pour gérer les favoris (toujours disponible)
     function toggleFavorite(questionId) {
         // Cette fonction permet toujours d'ajouter aux favoris
         CalculUpCore.showSuccess('Question ajoutée aux favoris ! ⭐');
@@ -1260,9 +1481,9 @@ const CalculUpQuestions = (function() {
         // Aperçu et validation
         updateQuestionPreview,
         previewQuestion,
-        submitQuestion,
+        submitQuestion, // 🔧 AJOUTÉ DANS L'API PUBLIQUE
         
-        // 🆕 Affichage des questions avec limitations
+        // Affichage des questions avec limitations
         displayQuestion,
         toggleFavorite,
         canUserSeeAnswers,
@@ -1278,4 +1499,4 @@ const CalculUpQuestions = (function() {
 // Rendre le module disponible globalement
 window.CalculUpQuestions = CalculUpQuestions;
 
-console.log('✅ Module CalculUpQuestions chargé avec limitations enseignants');
+console.log('✅ Module CalculUpQuestions chargé avec nouveau système de récompenses');
