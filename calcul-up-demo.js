@@ -519,30 +519,47 @@ window.CalculUpDemo = (function() {
     }
 
     function quickLogin(accountKey) {
+        console.log('🎭 quickLogin appelé avec:', accountKey);
+
         const users = JSON.parse(localStorage.getItem(DEMO_USERS_KEY) || '{}');
+        console.log('🎭 Utilisateurs disponibles:', Object.keys(users));
+
         const user = users[accountKey];
 
         if (!user) {
+            console.error('❌ Compte non trouvé:', accountKey);
             CalculUpCore.showError('Compte de test non trouvé');
             return;
         }
 
+        console.log('🎭 Utilisateur trouvé:', user.identifier, 'Type:', user.type);
+
         const result = demoLogin(accountKey, user.password);
+        console.log('🎭 Résultat login:', result);
 
         if (result.success) {
             CalculUpCore.showSuccess(`Connecté en tant que ${result.user.firstname}`);
 
             // Naviguer vers le bon écran selon le type
+            console.log('🎭 Navigation vers:', result.user.type === 'admin' ? 'admin-dashboard' :
+                       result.user.type === 'teacher' ? 'teacher-dashboard' : 'home');
+
             setTimeout(() => {
-                if (result.user.type === 'admin') {
-                    CalculUpCore.navigateToScreen('admin-dashboard');
-                } else if (result.user.type === 'teacher') {
-                    CalculUpCore.navigateToScreen('teacher-dashboard');
-                } else {
-                    CalculUpCore.navigateToScreen('home');
+                try {
+                    if (result.user.type === 'admin') {
+                        CalculUpCore.navigateToScreen('admin-dashboard');
+                    } else if (result.user.type === 'teacher') {
+                        CalculUpCore.navigateToScreen('teacher-dashboard');
+                    } else {
+                        CalculUpCore.navigateToScreen('home');
+                    }
+                } catch (error) {
+                    console.error('❌ Erreur navigation:', error);
+                    CalculUpCore.showError('Erreur de navigation: ' + error.message);
                 }
             }, 500);
         } else {
+            console.error('❌ Erreur login:', result.error);
             CalculUpCore.showError(result.error);
         }
     }

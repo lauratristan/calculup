@@ -342,27 +342,40 @@ function toggleAuthMode() {
 
 async function handleAuth(event) {
     event.preventDefault();
-    
+
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
-    
+
     // Détecter le mode depuis l'interface (plus fiable)
     const submitButton = document.getElementById('auth-submit');
     const isCurrentlyRegistration = submitButton.textContent === 'Créer mon compte';
-    
+
     console.log('🔍 Mode détecté:', isCurrentlyRegistration ? 'inscription' : 'connexion');
     console.log('🔍 isRegistrationMode variable:', isRegistrationMode);
-    
+
     if (!validateEmail(email)) {
         CalculUpCore.showError('Adresse email invalide');
         return;
     }
-    
+
     if (!validatePassword(password)) {
         CalculUpCore.showError('Le mot de passe doit contenir au moins 6 caractères');
         return;
     }
-    
+
+    // Vérifier si Firebase est disponible
+    const auth = CalculUpCore.getAuth();
+    if (!auth) {
+        CalculUpCore.showError('Firebase non disponible. Utilisez le mode démonstration.');
+        // Proposer automatiquement le mode démo
+        setTimeout(() => {
+            if (confirm('Firebase n\'est pas disponible. Voulez-vous utiliser le mode démonstration ?')) {
+                CalculUpDemo.showDemoLoginScreen();
+            }
+        }, 1000);
+        return;
+    }
+
     CalculUpCore.showLoading(isCurrentlyRegistration ? 'Création du compte...' : 'Connexion...');
     
     try {
@@ -394,7 +407,21 @@ async function handleAuth(event) {
         }
     } catch (error) {
         console.error('❌ Erreur auth:', error);
-        CalculUpCore.showError(CalculUpCore.formatError(error));
+
+        // Si erreur réseau ou Firebase non dispo, proposer mode démo
+        if (error.code === 'auth/network-request-failed' ||
+            error.message?.includes('network') ||
+            error.message?.includes('Firebase') ||
+            !CalculUpCore.isFirebaseReady()) {
+            CalculUpCore.showError('Connexion impossible. Firebase semble indisponible.');
+            setTimeout(() => {
+                if (confirm('Voulez-vous utiliser le mode démonstration à la place ?')) {
+                    CalculUpDemo.showDemoLoginScreen();
+                }
+            }, 500);
+        } else {
+            CalculUpCore.showError(CalculUpCore.formatError(error));
+        }
     } finally {
         CalculUpCore.hideLoading();
     }

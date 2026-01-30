@@ -32,13 +32,34 @@ window.CalculUpUser = (function() {
     // =============================================================================
     
     function showHomeScreen() {
-        const user = CalculUpCore.getUser();
-        if (!user || user.type !== 'student') {
-            CalculUpCore.navigateToScreen('login');
-            return;
-        }
-        
-        console.log('🏠 Affichage dashboard élève');
+        try {
+            const user = CalculUpCore.getUser();
+            console.log('🏠 showHomeScreen - User:', user);
+
+            if (!user) {
+                console.error('❌ Pas d\'utilisateur connecté');
+                // En mode démo, afficher l'écran démo
+                if (CalculUpCore.isDemoMode && CalculUpCore.isDemoMode()) {
+                    CalculUpDemo.showDemoLoginScreen();
+                } else {
+                    CalculUpCore.navigateToScreen('login');
+                }
+                return;
+            }
+
+            if (user.type !== 'student') {
+                console.log('👤 Type utilisateur:', user.type, '- redirection');
+                if (user.type === 'teacher') {
+                    CalculUpCore.navigateToScreen('teacher-dashboard');
+                } else if (user.type === 'admin') {
+                    CalculUpCore.navigateToScreen('admin-dashboard');
+                } else {
+                    CalculUpCore.navigateToScreen('login');
+                }
+                return;
+            }
+
+            console.log('🏠 Affichage dashboard élève pour', user.identifier);
         
         const root = document.getElementById('root');
         root.innerHTML = `
@@ -178,6 +199,24 @@ window.CalculUpUser = (function() {
                 </div>
             </div>
         `;
+        } catch (error) {
+            console.error('❌ Erreur showHomeScreen:', error);
+            CalculUpCore.showError('Erreur lors de l\'affichage du dashboard');
+            // Afficher un écran d'erreur basique
+            const root = document.getElementById('root');
+            root.innerHTML = `
+                <div class="min-h-screen flex items-center justify-center bg-rose-50 p-4">
+                    <div class="text-center">
+                        <div class="text-6xl mb-4">❌</div>
+                        <h1 class="text-xl font-bold text-rose-700 mb-4">Erreur d'affichage</h1>
+                        <p class="text-rose-600 mb-4">${error.message}</p>
+                        <button onclick="CalculUpDemo.showDemoLoginScreen()" class="btn-primary">
+                            Retour à l'accueil
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
     }
 
     // =============================================================================
