@@ -7,6 +7,27 @@ window.CalculUpUser = (function() {
     'use strict';
 
     // =============================================================================
+    // CONSTANTES ET ÉTAT
+    // =============================================================================
+
+    const IMPLEMENTED_FEATURES = {
+        studentDashboard: true,
+        teacherDashboard: true,
+        profileScreen: true,
+        statsScreen: true,
+        questionCatalog: true,
+        favoriteQuestions: true,
+        reportValidation: true
+    };
+
+    // État local du module
+    let currentCatalogTab = 'search';
+    let catalogSearchResults = [];
+    let favoriteQuestions = [];
+    let createdQuestions = [];
+    let teacherReports = [];
+
+    // =============================================================================
     // DASHBOARD ÉLÈVE - ÉCRAN PRINCIPAL
     // =============================================================================
     
@@ -830,21 +851,769 @@ window.CalculUpUser = (function() {
     }
 
     // =============================================================================
+    // CATALOGUE DE QUESTIONS (ENSEIGNANT)
+    // =============================================================================
+
+    function showQuestionCatalog() {
+        const user = CalculUpCore.getUser();
+        if (!user || user.type !== 'teacher') {
+            CalculUpCore.navigateToScreen('login');
+            return;
+        }
+
+        console.log('📚 Affichage catalogue questions enseignant');
+
+        const isProvisionalAccess = user.status === 'provisional_access';
+
+        const root = document.getElementById('root');
+        root.innerHTML = `
+            <div class="min-h-screen bg-gradient-to-br from-violet-50 to-sky-50">
+                <!-- Header -->
+                <div class="flex justify-between items-center p-6 bg-white/80 border-b border-stone-200 sticky top-0 z-10">
+                    <div class="flex items-center">
+                        <button onclick="CalculUpCore.navigateToScreen('teacher-dashboard')"
+                                class="mr-4 p-2 rounded-lg hover:bg-stone-100 transition-colors">
+                            <span class="text-xl">←</span>
+                        </button>
+                        <div>
+                            <h1 class="text-2xl font-bold text-stone-700">Catalogue de questions</h1>
+                            <p class="text-stone-500">Parcourez et gérez les questions</p>
+                        </div>
+                    </div>
+                    <button onclick="CalculUpCore.navigateToScreen('create-question')"
+                            class="btn-primary">
+                        + Créer une question
+                    </button>
+                </div>
+
+                ${isProvisionalAccess ? `
+                    <div class="mx-6 mt-4 bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg">
+                        <div class="flex items-center">
+                            <span class="text-amber-500 mr-2">⚠️</span>
+                            <p class="text-amber-700 text-sm">
+                                <strong>Accès provisoire :</strong> Les réponses des questions sont masquées jusqu'à validation de votre compte.
+                            </p>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Onglets -->
+                <div class="px-6 pt-4">
+                    <div class="flex border-b border-stone-200">
+                        <button onclick="CalculUpUser.switchCatalogTab('search')"
+                                id="tab-search"
+                                class="px-6 py-3 font-medium transition-colors ${currentCatalogTab === 'search' ? 'border-b-2 border-violet-500 text-violet-600' : 'text-stone-500 hover:text-stone-700'}">
+                            🔍 Rechercher
+                        </button>
+                        <button onclick="CalculUpUser.switchCatalogTab('favorites')"
+                                id="tab-favorites"
+                                class="px-6 py-3 font-medium transition-colors ${currentCatalogTab === 'favorites' ? 'border-b-2 border-violet-500 text-violet-600' : 'text-stone-500 hover:text-stone-700'}">
+                            ⭐ Favoris <span id="favorites-count" class="ml-1 bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full text-xs">${favoriteQuestions.length}</span>
+                        </button>
+                        <button onclick="CalculUpUser.switchCatalogTab('created')"
+                                id="tab-created"
+                                class="px-6 py-3 font-medium transition-colors ${currentCatalogTab === 'created' ? 'border-b-2 border-violet-500 text-violet-600' : 'text-stone-500 hover:text-stone-700'}">
+                            📝 Mes créations
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenu des onglets -->
+                <div class="p-6" id="catalog-content">
+                    <!-- Le contenu sera chargé dynamiquement -->
+                </div>
+            </div>
+        `;
+
+        // Charger le contenu de l'onglet actuel
+        switchCatalogTab(currentCatalogTab);
+    }
+
+    function switchCatalogTab(tabName) {
+        currentCatalogTab = tabName;
+
+        // Mettre à jour l'apparence des onglets
+        ['search', 'favorites', 'created'].forEach(tab => {
+            const tabEl = document.getElementById(`tab-${tab}`);
+            if (tabEl) {
+                if (tab === tabName) {
+                    tabEl.className = 'px-6 py-3 font-medium transition-colors border-b-2 border-violet-500 text-violet-600';
+                } else {
+                    tabEl.className = 'px-6 py-3 font-medium transition-colors text-stone-500 hover:text-stone-700';
+                }
+            }
+        });
+
+        const contentEl = document.getElementById('catalog-content');
+        if (!contentEl) return;
+
+        switch (tabName) {
+            case 'search':
+                renderSearchTab(contentEl);
+                break;
+            case 'favorites':
+                loadFavoriteQuestions().then(() => renderFavoritesTab(contentEl));
+                break;
+            case 'created':
+                loadCreatedQuestions().then(() => renderCreatedTab(contentEl));
+                break;
+        }
+    }
+
+    function renderSearchTab(container) {
+        const user = CalculUpCore.getUser();
+        const curriculum = CalculUpData.getCurriculum();
+
+        container.innerHTML = `
+            <div class="dashboard-card mb-6">
+                <h3 class="text-lg font-semibold text-stone-700 mb-4">Filtres de recherche</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-stone-700 mb-2">Niveau</label>
+                        <select id="filter-level" class="form-select" onchange="CalculUpUser.searchQuestions()">
+                            <option value="">Tous les niveaux</option>
+                            <option value="seconde">Seconde</option>
+                            <option value="premiere">Première</option>
+                            <option value="terminale">Terminale</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-stone-700 mb-2">Difficulté</label>
+                        <select id="filter-difficulty" class="form-select" onchange="CalculUpUser.searchQuestions()">
+                            <option value="">Toutes</option>
+                            <option value="1">Facile</option>
+                            <option value="2">Moyen</option>
+                            <option value="3">Difficile</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-stone-700 mb-2">Type</label>
+                        <select id="filter-type" class="form-select" onchange="CalculUpUser.searchQuestions()">
+                            <option value="">Tous</option>
+                            <option value="qcm">QCM</option>
+                            <option value="open">Réponse ouverte</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-stone-700 mb-2">Recherche</label>
+                        <input type="text" id="filter-search" class="form-input"
+                               placeholder="Mot-clé..." onkeyup="CalculUpUser.searchQuestions()">
+                    </div>
+                </div>
+            </div>
+
+            <div id="search-results" class="space-y-4">
+                <div class="text-center text-stone-500 py-8">
+                    <div class="text-4xl mb-4">🔍</div>
+                    <p>Utilisez les filtres ci-dessus pour rechercher des questions</p>
+                </div>
+            </div>
+        `;
+
+        // Lancer une recherche initiale
+        searchQuestions();
+    }
+
+    async function searchQuestions() {
+        const level = document.getElementById('filter-level')?.value || '';
+        const difficulty = document.getElementById('filter-difficulty')?.value || '';
+        const type = document.getElementById('filter-type')?.value || '';
+        const search = document.getElementById('filter-search')?.value || '';
+
+        const resultsContainer = document.getElementById('search-results');
+        if (!resultsContainer) return;
+
+        resultsContainer.innerHTML = `
+            <div class="text-center py-8">
+                <div class="loading-spin mx-auto mb-4"></div>
+                <p class="text-stone-500">Recherche en cours...</p>
+            </div>
+        `;
+
+        try {
+            const filters = {};
+            if (level) filters.level = level;
+            if (difficulty) filters.difficulty = parseInt(difficulty);
+
+            let questions = await CalculUpCore.fetchQuestions(filters);
+
+            // Filtrer par type si spécifié
+            if (type) {
+                questions = questions.filter(q => q.type === type);
+            }
+
+            // Filtrer par mot-clé
+            if (search) {
+                const searchLower = search.toLowerCase();
+                questions = questions.filter(q =>
+                    q.question?.toLowerCase().includes(searchLower) ||
+                    q.chapter?.toLowerCase().includes(searchLower) ||
+                    q.notion?.toLowerCase().includes(searchLower)
+                );
+            }
+
+            catalogSearchResults = questions;
+            renderQuestionsList(resultsContainer, questions, 'search');
+
+        } catch (error) {
+            console.error('Erreur recherche:', error);
+            resultsContainer.innerHTML = `
+                <div class="alert error">
+                    Erreur lors de la recherche. Veuillez réessayer.
+                </div>
+            `;
+        }
+    }
+
+    async function loadFavoriteQuestions() {
+        const user = CalculUpCore.getUser();
+        if (!user) return;
+
+        try {
+            const db = CalculUpCore.getDb();
+            if (!db) {
+                // Mode démo : utiliser les favoris locaux
+                favoriteQuestions = user.favorites || [];
+                return;
+            }
+
+            const favoritesDoc = await db.collection('users').doc(user.id)
+                .collection('favorites').get();
+
+            favoriteQuestions = favoritesDoc.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+        } catch (error) {
+            console.error('Erreur chargement favoris:', error);
+            favoriteQuestions = [];
+        }
+    }
+
+    async function loadCreatedQuestions() {
+        const user = CalculUpCore.getUser();
+        if (!user) return;
+
+        try {
+            const db = CalculUpCore.getDb();
+            if (!db) {
+                // Mode démo
+                createdQuestions = [];
+                return;
+            }
+
+            const snapshot = await db.collection('questions')
+                .where('creatorId', '==', user.id)
+                .orderBy('createdAt', 'desc')
+                .get();
+
+            createdQuestions = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+        } catch (error) {
+            console.error('Erreur chargement questions créées:', error);
+            createdQuestions = [];
+        }
+    }
+
+    function renderFavoritesTab(container) {
+        if (favoriteQuestions.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4">⭐</div>
+                    <h3 class="text-xl font-semibold text-stone-700 mb-2">Aucun favori</h3>
+                    <p class="text-stone-500 mb-6">Ajoutez des questions à vos favoris pour y accéder rapidement</p>
+                    <button onclick="CalculUpUser.switchCatalogTab('search')" class="btn-secondary">
+                        🔍 Parcourir les questions
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-stone-700">
+                    ${favoriteQuestions.length} question(s) en favoris
+                </h3>
+                <button onclick="CalculUpUser.clearAllFavorites()"
+                        class="text-rose-600 hover:text-rose-700 text-sm">
+                    🗑️ Tout supprimer
+                </button>
+            </div>
+            <div id="favorites-list" class="space-y-4"></div>
+        `;
+
+        renderQuestionsList(document.getElementById('favorites-list'), favoriteQuestions, 'favorites');
+    }
+
+    function renderCreatedTab(container) {
+        if (createdQuestions.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4">📝</div>
+                    <h3 class="text-xl font-semibold text-stone-700 mb-2">Aucune question créée</h3>
+                    <p class="text-stone-500 mb-6">Commencez à créer des questions pour la communauté</p>
+                    <button onclick="CalculUpCore.navigateToScreen('create-question')" class="btn-primary">
+                        + Créer ma première question
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-stone-700">
+                    ${createdQuestions.length} question(s) créée(s)
+                </h3>
+            </div>
+            <div id="created-list" class="space-y-4"></div>
+        `;
+
+        renderQuestionsList(document.getElementById('created-list'), createdQuestions, 'created');
+    }
+
+    function renderQuestionsList(container, questions, context) {
+        const user = CalculUpCore.getUser();
+        const isProvisionalAccess = user?.status === 'provisional_access';
+        const canSeeAnswers = user?.type === 'teacher' && !isProvisionalAccess;
+
+        if (questions.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-stone-500">
+                    <div class="text-4xl mb-4">📭</div>
+                    <p>Aucune question trouvée</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = questions.map(q => {
+            const isFavorite = favoriteQuestions.some(fav => fav.id === q.id);
+            const difficultyColors = {
+                1: 'bg-emerald-100 text-emerald-700',
+                2: 'bg-amber-100 text-amber-700',
+                3: 'bg-rose-100 text-rose-700'
+            };
+            const difficultyLabels = { 1: 'Facile', 2: 'Moyen', 3: 'Difficile' };
+
+            return `
+                <div class="dashboard-card hover:shadow-lg transition-shadow">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 rounded-full text-xs ${difficultyColors[q.difficulty] || 'bg-stone-100'}">${difficultyLabels[q.difficulty] || 'N/A'}</span>
+                                <span class="px-2 py-1 rounded-full text-xs bg-sky-100 text-sky-700">${q.level || 'N/A'}</span>
+                                <span class="px-2 py-1 rounded-full text-xs bg-violet-100 text-violet-700">${q.type === 'qcm' ? 'QCM' : 'Ouverte'}</span>
+                                ${q.verified ? '<span class="text-emerald-500">✓</span>' : '<span class="text-amber-500">⏳</span>'}
+                            </div>
+                            <p class="text-stone-700 font-medium mb-2">${q.question}</p>
+                            <p class="text-sm text-stone-500">
+                                ${q.chapter || 'Sans chapitre'} ${q.notion ? `• ${q.notion}` : ''}
+                            </p>
+                            ${canSeeAnswers ? `
+                                <div class="mt-3 p-3 bg-emerald-50 rounded-lg">
+                                    <p class="text-sm text-emerald-700">
+                                        <strong>Réponse :</strong> ${q.type === 'qcm' ? q.options?.[q.correctAnswer] : q.answer}
+                                    </p>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="flex flex-col gap-2 ml-4">
+                            <button onclick="CalculUpUser.toggleFavorite('${q.id}')"
+                                    id="fav-btn-${q.id}"
+                                    class="p-2 rounded-lg ${isFavorite ? 'bg-amber-100 text-amber-600' : 'bg-stone-100 text-stone-400'} hover:scale-110 transition-transform">
+                                ${isFavorite ? '⭐' : '☆'}
+                            </button>
+                            ${context === 'created' ? `
+                                <button onclick="CalculUpUser.editQuestion('${q.id}')"
+                                        class="p-2 rounded-lg bg-sky-100 text-sky-600 hover:bg-sky-200">
+                                    ✏️
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function toggleFavorite(questionId) {
+        const user = CalculUpCore.getUser();
+        if (!user) return;
+
+        const isFavorite = favoriteQuestions.some(fav => fav.id === questionId);
+
+        try {
+            const db = CalculUpCore.getDb();
+
+            if (isFavorite) {
+                // Retirer des favoris
+                favoriteQuestions = favoriteQuestions.filter(fav => fav.id !== questionId);
+                if (db) {
+                    await db.collection('users').doc(user.id)
+                        .collection('favorites').doc(questionId).delete();
+                }
+            } else {
+                // Ajouter aux favoris
+                const question = catalogSearchResults.find(q => q.id === questionId) ||
+                               createdQuestions.find(q => q.id === questionId);
+                if (question) {
+                    favoriteQuestions.push(question);
+                    if (db) {
+                        await db.collection('users').doc(user.id)
+                            .collection('favorites').doc(questionId).set({
+                                ...question,
+                                addedAt: window.firebase?.firestore?.FieldValue?.serverTimestamp() || new Date()
+                            });
+                    }
+                }
+            }
+
+            // Mise à jour immédiate du bouton
+            updateFavoriteButtonImmediate(questionId, !isFavorite);
+
+            // Mettre à jour le compteur
+            const countEl = document.getElementById('favorites-count');
+            if (countEl) countEl.textContent = favoriteQuestions.length;
+
+        } catch (error) {
+            console.error('Erreur toggle favori:', error);
+            CalculUpCore.showError('Erreur lors de la mise à jour des favoris');
+        }
+    }
+
+    function updateFavoriteButtonImmediate(questionId, isFavorite) {
+        const btn = document.getElementById(`fav-btn-${questionId}`);
+        if (btn) {
+            btn.className = `p-2 rounded-lg ${isFavorite ? 'bg-amber-100 text-amber-600' : 'bg-stone-100 text-stone-400'} hover:scale-110 transition-transform`;
+            btn.innerHTML = isFavorite ? '⭐' : '☆';
+        }
+    }
+
+    async function clearAllFavorites() {
+        if (!confirm('Supprimer tous les favoris ?')) return;
+
+        const user = CalculUpCore.getUser();
+        if (!user) return;
+
+        try {
+            const db = CalculUpCore.getDb();
+            if (db) {
+                const batch = db.batch();
+                favoriteQuestions.forEach(fav => {
+                    const ref = db.collection('users').doc(user.id)
+                        .collection('favorites').doc(fav.id);
+                    batch.delete(ref);
+                });
+                await batch.commit();
+            }
+
+            favoriteQuestions = [];
+
+            // Rafraîchir l'affichage
+            const container = document.getElementById('catalog-content');
+            if (container && currentCatalogTab === 'favorites') {
+                renderFavoritesTab(container);
+            }
+
+            CalculUpCore.showSuccess('Tous les favoris ont été supprimés');
+
+        } catch (error) {
+            console.error('Erreur suppression favoris:', error);
+            CalculUpCore.showError('Erreur lors de la suppression');
+        }
+    }
+
+    function editQuestion(questionId) {
+        // Naviguer vers l'écran de modification
+        CalculUpCore.navigateToScreen('create-question', { editId: questionId });
+    }
+
+    // =============================================================================
+    // VALIDATION DES SIGNALEMENTS (ENSEIGNANT VALIDÉ)
+    // =============================================================================
+
+    function showReportValidation() {
+        const user = CalculUpCore.getUser();
+        if (!user || user.type !== 'teacher' || user.status === 'provisional_access') {
+            CalculUpCore.showError('Accès non autorisé');
+            CalculUpCore.navigateToScreen('teacher-dashboard');
+            return;
+        }
+
+        console.log('📋 Affichage validation signalements');
+
+        const root = document.getElementById('root');
+        root.innerHTML = `
+            <div class="min-h-screen bg-gradient-to-br from-amber-50 to-rose-50">
+                <!-- Header -->
+                <div class="flex justify-between items-center p-6 bg-white/80 border-b border-stone-200 sticky top-0 z-10">
+                    <div class="flex items-center">
+                        <button onclick="CalculUpCore.navigateToScreen('teacher-dashboard')"
+                                class="mr-4 p-2 rounded-lg hover:bg-stone-100 transition-colors">
+                            <span class="text-xl">←</span>
+                        </button>
+                        <div>
+                            <h1 class="text-2xl font-bold text-stone-700">Signalements à valider</h1>
+                            <p class="text-stone-500">Vérifiez les questions signalées par les utilisateurs</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="max-w-4xl mx-auto p-6">
+                    <div id="reports-list" class="space-y-6">
+                        <div class="text-center py-8">
+                            <div class="loading-spin mx-auto mb-4"></div>
+                            <p class="text-stone-500">Chargement des signalements...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        loadTeacherReports();
+    }
+
+    async function loadTeacherReports() {
+        const container = document.getElementById('reports-list');
+        if (!container) return;
+
+        try {
+            const db = CalculUpCore.getDb();
+            if (!db) {
+                // Mode démo
+                teacherReports = getDemoReports();
+            } else {
+                const snapshot = await db.collection('reports')
+                    .where('status', '==', 'pending')
+                    .orderBy('createdAt', 'desc')
+                    .limit(20)
+                    .get();
+
+                teacherReports = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+            }
+
+            renderReportsList(container);
+
+        } catch (error) {
+            console.error('Erreur chargement signalements:', error);
+            container.innerHTML = `
+                <div class="alert error">
+                    Erreur lors du chargement des signalements
+                </div>
+            `;
+        }
+    }
+
+    function getDemoReports() {
+        return [
+            {
+                id: 'demo-report-1',
+                questionId: 'q1',
+                questionText: 'Quelle est la dérivée de f(x) = x² ?',
+                reason: 'error',
+                description: 'La réponse proposée semble incorrecte',
+                reporterName: 'demo_student',
+                createdAt: new Date()
+            },
+            {
+                id: 'demo-report-2',
+                questionId: 'q5',
+                questionText: 'Calculer la limite quand x tend vers +∞',
+                reason: 'unclear',
+                description: 'L\'énoncé manque de précision',
+                reporterName: 'demo_student',
+                createdAt: new Date()
+            }
+        ];
+    }
+
+    function renderReportsList(container) {
+        if (teacherReports.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4">✅</div>
+                    <h3 class="text-xl font-semibold text-stone-700 mb-2">Aucun signalement en attente</h3>
+                    <p class="text-stone-500">Tous les signalements ont été traités</p>
+                </div>
+            `;
+            return;
+        }
+
+        const reasonLabels = {
+            error: { label: 'Erreur dans la question', color: 'rose' },
+            unclear: { label: 'Énoncé pas clair', color: 'amber' },
+            duplicate: { label: 'Question en double', color: 'sky' },
+            inappropriate: { label: 'Contenu inapproprié', color: 'violet' },
+            other: { label: 'Autre raison', color: 'stone' }
+        };
+
+        container.innerHTML = `
+            <div class="mb-4 text-stone-600">
+                ${teacherReports.length} signalement(s) en attente de validation
+            </div>
+            ${teacherReports.map(report => {
+                const reasonInfo = reasonLabels[report.reason] || reasonLabels.other;
+                return `
+                    <div class="dashboard-card" id="report-${report.id}">
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="px-3 py-1 rounded-full text-sm bg-${reasonInfo.color}-100 text-${reasonInfo.color}-700">
+                                ${reasonInfo.label}
+                            </span>
+                            <span class="text-sm text-stone-500">
+                                Signalé par @${report.reporterName || 'anonyme'}
+                            </span>
+                        </div>
+
+                        <div class="bg-stone-50 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-stone-500 mb-1">Question concernée :</p>
+                            <p class="text-stone-700 font-medium">${report.questionText || 'Question non disponible'}</p>
+                        </div>
+
+                        ${report.description ? `
+                            <div class="mb-4">
+                                <p class="text-sm text-stone-500 mb-1">Description du problème :</p>
+                                <p class="text-stone-700">${report.description}</p>
+                            </div>
+                        ` : ''}
+
+                        <div class="flex gap-3">
+                            <button onclick="CalculUpUser.processTeacherReport('${report.id}', 'valid')"
+                                    class="flex-1 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg hover:bg-emerald-200 transition-colors">
+                                ✓ Signalement valide
+                            </button>
+                            <button onclick="CalculUpUser.processTeacherReport('${report.id}', 'invalid')"
+                                    class="flex-1 bg-rose-100 text-rose-700 px-4 py-2 rounded-lg hover:bg-rose-200 transition-colors">
+                                ✗ Signalement invalide
+                            </button>
+                            <button onclick="CalculUpUser.viewQuestion('${report.questionId}')"
+                                    class="bg-sky-100 text-sky-700 px-4 py-2 rounded-lg hover:bg-sky-200 transition-colors">
+                                👁️ Voir la question
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        `;
+    }
+
+    async function processTeacherReport(reportId, decision) {
+        const user = CalculUpCore.getUser();
+        if (!user) return;
+
+        const reportCard = document.getElementById(`report-${reportId}`);
+        if (reportCard) {
+            reportCard.style.opacity = '0.5';
+            reportCard.style.pointerEvents = 'none';
+        }
+
+        try {
+            const db = CalculUpCore.getDb();
+            if (db) {
+                await db.collection('reports').doc(reportId).update({
+                    status: decision === 'valid' ? 'validated' : 'rejected',
+                    processedBy: user.id,
+                    processedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // Si signalement validé, marquer la question pour révision
+                if (decision === 'valid') {
+                    const report = teacherReports.find(r => r.id === reportId);
+                    if (report?.questionId) {
+                        await db.collection('questions').doc(report.questionId).update({
+                            needsReview: true,
+                            lastReportId: reportId
+                        });
+                    }
+                }
+            }
+
+            // Retirer de la liste locale
+            teacherReports = teacherReports.filter(r => r.id !== reportId);
+
+            // Animer la suppression
+            if (reportCard) {
+                reportCard.style.transition = 'all 0.3s ease-out';
+                reportCard.style.transform = 'translateX(100%)';
+                reportCard.style.opacity = '0';
+                setTimeout(() => {
+                    reportCard.remove();
+                    // Vérifier s'il reste des signalements
+                    if (teacherReports.length === 0) {
+                        const container = document.getElementById('reports-list');
+                        if (container) renderReportsList(container);
+                    }
+                }, 300);
+            }
+
+            CalculUpCore.showSuccess(
+                decision === 'valid'
+                    ? 'Signalement validé - Question marquée pour révision'
+                    : 'Signalement rejeté'
+            );
+
+            // XP bonus pour le traitement
+            await CalculUpCore.updateUserData({
+                'stats.reportsProcessed': (user.stats?.reportsProcessed || 0) + 1
+            });
+
+        } catch (error) {
+            console.error('Erreur traitement signalement:', error);
+            CalculUpCore.showError('Erreur lors du traitement');
+
+            if (reportCard) {
+                reportCard.style.opacity = '1';
+                reportCard.style.pointerEvents = 'auto';
+            }
+        }
+    }
+
+    function viewQuestion(questionId) {
+        // Ouvrir un modal ou naviguer vers la question
+        CalculUpCore.showSuccess('Fonctionnalité en cours de développement');
+    }
+
+    // =============================================================================
     // API PUBLIQUE DU MODULE
     // =============================================================================
-    
+
     return {
+        // Constantes
+        IMPLEMENTED_FEATURES,
+
         // Écrans
         showHomeScreen,
         showProfileScreen,
         showStatsScreen,
         showTeacherDashboard,
-        
-        // Actions
+        showQuestionCatalog,
+        showReportValidation,
+
+        // Catalogue
+        switchCatalogTab,
+        searchQuestions,
+        toggleFavorite,
+        clearAllFavorites,
+        editQuestion,
+
+        // Signalements
+        loadTeacherReports,
+        processTeacherReport,
+        viewQuestion,
+
+        // Actions profil
         updateSchoolLevel,
         toggleNotionSeen,
         toggleChapterNotions,
-        
+
         // Utilitaires
         isFeatureUnlocked: (feature) => isFeatureUnlocked(CalculUpCore.getUser(), feature),
         getFeatureStatus

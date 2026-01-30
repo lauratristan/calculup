@@ -20,7 +20,7 @@ window.CalculUpCore = (function() {
 
     // =============================================================================
 
-    
+
 
     let app = null;
 
@@ -35,6 +35,8 @@ window.CalculUpCore = (function() {
     let firebaseReady = false;
 
     let isLoading = false;
+
+    let demoMode = false; // Mode démo sans Firebase
 
 
 
@@ -394,6 +396,24 @@ window.CalculUpCore = (function() {
 
                     break;
 
+                case 'question-catalog':
+
+                    CalculUpUser.showQuestionCatalog();
+
+                    break;
+
+                case 'report-validation':
+
+                    CalculUpUser.showReportValidation();
+
+                    break;
+
+                case 'demo-login':
+
+                    CalculUpDemo.showDemoLoginScreen();
+
+                    break;
+
                 default:
 
                     console.warn('⚠️ Écran inconnu:', screenName);
@@ -632,9 +652,21 @@ window.CalculUpCore = (function() {
 
         try {
 
+            // Mode démo : utiliser les données locales
+
+            if (demoMode || (window.CalculUpDemo && CalculUpDemo.isDemoModeActive())) {
+
+                console.log('📋 Questions récupérées (mode démo)');
+
+                return CalculUpDemo.getDemoQuestions(filters);
+
+            }
+
+
+
             const cacheKey = JSON.stringify(filters);
 
-            
+
 
             if (questionsCache.has(cacheKey)) {
 
@@ -644,7 +676,7 @@ window.CalculUpCore = (function() {
 
             }
 
-            
+
 
             let query = db.collection('questions').where('verified', '==', true);
 
@@ -724,9 +756,19 @@ window.CalculUpCore = (function() {
 
     async function updateUserData(updates) {
 
+        // Mode démo : utiliser le stockage local
+
+        if (demoMode || (window.CalculUpDemo && CalculUpDemo.isDemoModeActive())) {
+
+            return CalculUpDemo.updateDemoUser(updates);
+
+        }
+
+
+
         if (!user || !firebaseReady) return false;
 
-        
+
 
         try {
 
@@ -738,7 +780,7 @@ window.CalculUpCore = (function() {
 
             });
 
-            
+
 
             // Mettre à jour l'objet utilisateur local
 
@@ -746,7 +788,7 @@ window.CalculUpCore = (function() {
 
             usersCache.set(user.id, user);
 
-            
+
 
             return true;
 
@@ -972,13 +1014,31 @@ window.CalculUpCore = (function() {
 
                         <p class="text-rose-600 mb-4">${error.message}</p>
 
-                        <button onclick="window.location.reload()" 
+                        <div class="space-y-3">
 
-                                class="btn-primary">
+                            <button onclick="window.location.reload()"
 
-                            Recharger la page
+                                    class="w-full btn-primary">
 
-                        </button>
+                                Recharger la page
+
+                            </button>
+
+                            <button onclick="CalculUpDemo.showDemoLoginScreen()"
+
+                                    class="w-full bg-violet-100 text-violet-700 p-3 rounded-lg hover:bg-violet-200 transition-colors">
+
+                                🎭 Utiliser le mode démonstration
+
+                            </button>
+
+                        </div>
+
+                        <p class="text-sm text-stone-500 mt-4">
+
+                            Le mode démo permet de tester l'application sans connexion Firebase
+
+                        </p>
 
                     </div>
 
@@ -1022,9 +1082,35 @@ window.CalculUpCore = (function() {
 
         // État
 
-        getUser: () => user,
+        getUser: () => {
 
-        isLoggedIn: () => !!user,
+            // En mode démo, retourner l'utilisateur démo
+
+            if (demoMode || (window.CalculUpDemo && CalculUpDemo.isDemoModeActive())) {
+
+                return CalculUpDemo.getCurrentDemoUser();
+
+            }
+
+            return user;
+
+        },
+
+        setDemoMode: (enabled) => { demoMode = enabled; },
+
+        isDemoMode: () => demoMode || (window.CalculUpDemo && CalculUpDemo.isDemoModeActive()),
+
+        isLoggedIn: () => {
+
+            if (demoMode || (window.CalculUpDemo && CalculUpDemo.isDemoModeActive())) {
+
+                return !!CalculUpDemo.getCurrentDemoUser();
+
+            }
+
+            return !!user;
+
+        },
 
         isFirebaseReady: () => firebaseReady,
 

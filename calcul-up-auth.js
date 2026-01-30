@@ -208,11 +208,25 @@ function showLoginScreen() {
                         <div class="flex-1">
                             <h4 class="text-sm font-medium text-amber-800">Compte Enseignant</h4>
                             <p class="text-xs text-amber-600 mt-1">
-                                Votre compte sera vérifié par un administrateur avant activation. 
+                                Votre compte sera vérifié par un administrateur avant activation.
                                 Utilisez votre adresse email académique officielle.
                             </p>
                         </div>
                     </div>
+                </div>
+
+                <!-- Bouton mode démo -->
+                <div class="mt-6 pt-6 border-t border-stone-200">
+                    <button
+                        onclick="CalculUpDemo.showDemoLoginScreen()"
+                        class="w-full bg-violet-100 hover:bg-violet-200 text-violet-700 font-medium py-3 px-6 rounded-xl transition-all flex items-center justify-center space-x-2"
+                    >
+                        <span>🎭</span>
+                        <span>Mode Démonstration (sans Firebase)</span>
+                    </button>
+                    <p class="text-xs text-center text-stone-500 mt-2">
+                        Testez l'application avec des comptes de test locaux
+                    </p>
                 </div>
             </div>
         </div>
@@ -601,6 +615,16 @@ async function handleLogin(email, password) {
 async function handleLogout() {
     try {
         CalculUpCore.showLoading('Déconnexion...');
+
+        // Mode démo : utiliser la déconnexion locale
+        if (CalculUpCore.isDemoMode && CalculUpCore.isDemoMode()) {
+            CalculUpDemo.demoLogout();
+            console.log('✅ Déconnexion démo réussie');
+            CalculUpCore.showSuccess('👋 À bientôt !');
+            CalculUpDemo.showDemoLoginScreen();
+            return;
+        }
+
         await CalculUpCore.getAuth().signOut();
         console.log('✅ Déconnexion réussie');
         CalculUpCore.showSuccess('👋 À bientôt !');
